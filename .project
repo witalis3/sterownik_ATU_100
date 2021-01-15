@@ -52,6 +52,16 @@
 			<location>C:/Users/48515/Documents/Arduino/libraries/Bounce2</location>
 		</link>
 		<link>
+			<name>libraries/EEPROM</name>
+			<type>2</type>
+			<locationURI>ECLIPSE_HOME/arduinoPlugin/packages/arduino/hardware/avr/1.8.2/libraries/EEPROM</locationURI>
+		</link>
+		<link>
+			<name>libraries/LiquidCrystal_I2C</name>
+			<type>2</type>
+			<location>C:/Users/48515/Documents/Arduino/libraries/LiquidCrystal_I2C</location>
+		</link>
+		<link>
 			<name>libraries/New-LiquidCrystal-master</name>
 			<type>2</type>
 			<location>C:/Users/48515/Documents/Arduino/libraries/New-LiquidCrystal-master</location>
