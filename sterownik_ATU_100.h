@@ -12,15 +12,16 @@
 
 #define DEBUG
 
-#define TUNE_BUTTON_PIN		11
+#define TUNE_BUTTON_PIN		7
 #define AUTO_BUTTON_PIN		5
 #define BYPASS_BUTTON_PIN	6
-#define FWD_PIN				A6
-#define REF_PIN				A7
+#define MANUAL_BUTTON_PIN	A0	// BUTTON6
+#define FWD_PIN				A7
+#define REF_PIN				A6
 #define SW_PIN				A1	// przełączanie kondensatorów przód tył IN/OUT
 #define TX_REQUEST_PIN		11	// żądanie nadawania dla TRX
-#define GREEN_LED_PIN		10
-#define RED_LED_PIN			9
+#define GREEN_LED_PIN		9
+#define RED_LED_PIN			10
 #define BAND0_PIN			8
 #define BAND1_PIN			2
 #define BAND2_PIN			3
@@ -34,9 +35,9 @@ int get_reverse(void);
 int get_forward(void);
 int correction(int input);
 void show_pwr(int Power, int SWR);
-void set_ind(char Ind);
-void set_cap(char Cap);
-void set_sw(char SW);
+void set_ind(byte Ind);
+void set_cap(byte Cap);
+void set_sw(byte SW);
 void lcd_ind();
 void sub_tune();
 void coarse_tune();
@@ -64,5 +65,6 @@ void button_proc_test(void);
 void Test_init(void);
 void cells_init(void);
 uint8_t Bcd2Dec(uint8_t n);
+void tune_zapis();
 
 #endif /* STEROWNIK_ATU_100_H_ */

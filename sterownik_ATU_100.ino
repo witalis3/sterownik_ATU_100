@@ -21,6 +21,7 @@ Adafruit_MCP23008 mcp_l;	// expander dla cewek; sub adres 0x1
 Button tune_button = Button();
 Button auto_button = Button();
 Button bypass_button = Button();
+Button manual_button = Button();
 
 byte rready = 0, p_cnt = 0, lcd_prep_short = 0, Auto;
 byte type = 1, Soft_tune = 0;	// 1602
@@ -31,22 +32,21 @@ int SWR_old = 10000;
 int P_max, SWR, PWR, swr_a, work_int;
 int SWR_fixed_old = 0;
 int Cap1, Cap2, Cap3, Cap4, Cap5, Cap6, Cap7, Cap8;
+//int Cap1 = 10, Cap2 = 22, Cap3 = 47, Cap4 = 100, Cap5 = 220, Cap6 = 470, Cap7 = 1000, Cap8 = 1820;
 int Ind1, Ind2, Ind3, Ind4, Ind5, Ind6, Ind7, Ind8;
 char Dysp_delay = 0;
 int dysp_cnt = 0;
 float dysp_cnt_mult = 2.3;
 int Auto_delta;
 byte L = 1, but = 0;
-static byte ind = 0, cap = 0, SW = 0, step_cap = 0, step_ind = 0, L_linear = 0, C_linear = 0, L_q = 7, C_q = 7, Overload = 0,
+static byte ind = 0, cap = 0, SW = 0, step_cap = 0, step_ind = 0, L_linear = 0, C_linear = 0, L_q = 7, C_q = 8, Overload = 0,
 		D_correction = 1, K_Mult = 24, P_High = 1, L_invert = 0, Loss_ind = 0;
-static byte L_mult = 4, C_mult = 4;		// na razie ustawione na 7X7
+static byte L_mult = 4, C_mult = 8;		// ustawione na 7X8
 
 static int Rel_Del = 15, min_for_start, max_for_start, max_swr = 0;
 byte mem_offset = 0;
 byte offset;
 char bypas = 0, cap_mem = 0, ind_mem = 0, SW_mem = 0, Auto_mem = 0;
-
-
 
 union swaper
 {
@@ -70,19 +70,22 @@ void setup()
 	Serial.begin(115200);
 	Serial.println("setup poczatek");
 #endif
+	cells_init();
 	pinMode(SW_PIN, OUTPUT);
 	digitalWrite(SW_PIN, SW);
 	pinMode(TX_REQUEST_PIN, OUTPUT);
 	digitalWrite(TX_REQUEST_PIN, HIGH);		// TX request stan aktywny niski
-	// LEDy jako wyświetlacz
+	// LEDy jako wyświetlacz:
 	pinMode(GREEN_LED_PIN, OUTPUT);
 	digitalWrite(GREEN_LED_PIN, HIGH);
 	pinMode(RED_LED_PIN, OUTPUT);
 	digitalWrite(RED_LED_PIN, HIGH);
+	// band data:
 	pinMode(BAND0_PIN, INPUT_PULLUP);
 	pinMode(BAND1_PIN, INPUT_PULLUP);
 	pinMode(BAND2_PIN, INPUT_PULLUP);
 	pinMode(BAND3_PIN, INPUT_PULLUP);
+	// przyciski:
 	tune_button.attach(TUNE_BUTTON_PIN, INPUT_PULLUP);
 	tune_button.setPressedState(LOW);
 	tune_button.interval(50);
@@ -92,8 +95,9 @@ void setup()
 	bypass_button.attach(BYPASS_BUTTON_PIN, INPUT_PULLUP);
 	bypass_button.setPressedState(LOW);
 	bypass_button.interval(50);
-
-	cells_init();
+	manual_button.attach(MANUAL_BUTTON_PIN, INPUT_PULLUP);
+	manual_button.setPressedState(LOW);
+	manual_button.interval(50);
 
 	dysp_cnt = Dysp_delay * dysp_cnt_mult;
     //
@@ -129,11 +133,6 @@ void setup()
 	mcp_c.writeGPIO(0x0);		// wszystkie przekaźniki wyłączone
 	mcp_c.write8(MCP23008_IODIR, 0);	// wszystkie piny jako wyjścia
 
-	// ToDo odczyt ustawień z EEPROM
-	Cap1 = 10, Cap2 = 22, Cap3 = 47, Cap4 = 100, Cap5 = 220, Cap6 = 470, Cap7 = 1000, Cap8 = 1820;
-	Auto = 0;
-	Auto_delta = 130;
-
     if (Test == 0)
     {
         read_i2c_inputs();
@@ -152,6 +151,25 @@ void setup()
 void loop()
 {
     lcd_pwr();
+    manual_button.update();
+    if (manual_button.pressed())
+    {
+    	if (Test == 0)
+    	{
+    		Test = 1;
+    		lcd.setCursor(8, 0);
+    		lcd.print("l");
+    		lcd_prep_short = 1;
+    		lcd_prep();
+    	}
+    	else if (Test == 1)
+    	{
+    		Test = 0;
+    		lcd.setCursor(8, 0);
+    		lcd.print(" ");
+    		tune_zapis();
+    	}
+    }
     if (Test == 0)
     {
         button_proc();	// główna procedura
@@ -160,26 +178,19 @@ void loop()
     {
         button_proc_test();
     }
-/*
-    tune_button.update();
-	if (tune_button.pressed())
-	{
-		lcd.setCursor(4, 1);
-		lcd.print("TUNE");
-        digitalWrite(TX_REQUEST_PIN, LOW);
-		tune();
-	}
-*/
-
 	if (dysp_cnt != 0)
         dysp_cnt--;
-    else if ((Test == 0) & (Dysp_delay != 0))
+    else if ((Test == 0) && (Dysp_delay != 0))
         dysp_off();
     // memo_code
     offset = mem_offset;
     read_i2c_inputs();
-
-    if (offset != mem_offset) {
+    if (offset != mem_offset)
+    {
+#ifdef DEBUG
+		Serial.print("mem_offset: ");
+		Serial.println(mem_offset, HEX);
+#endif
         load_settings();
         lcd_ind();
     }
@@ -216,7 +227,7 @@ void tune()
     }
     if (SWR < 120)
         return;
-    if (C_q == 5 & L_q == 5)
+    if ((C_q == 5) & (L_q == 5))
         return;
 
     if (L_q > 5)
@@ -266,7 +277,7 @@ void get_swr()
         show_pwr(P_max, SWR);
         P_max = 0;
     }
-    while ((PWR < min_for_start) | ((PWR > max_for_start) & (max_for_start > 0)))
+    while ((PWR < min_for_start) || ((PWR > max_for_start) & (max_for_start > 0)))
     { // waiting for good power
 
         get_pwr();
@@ -282,17 +293,15 @@ void get_swr()
             show_pwr(P_max, SWR);
             P_max = 0;
         }
-        //
-        /*	ToDo obsługa klawisza Tune
-        if (Button( & PORTB, 0, 5, 1))
+        tune_button.update();
+        if (tune_button.read() == 1)
             rready = 1;
-        if (rready == 1 & Button( & PORTB, 0, 5, 0))
+        if ((rready == 1) & tune_button.pressed())
         { //  press button  Tune
             show_reset();
             SWR = 0;	// wskaźnik przerwania oczekiwania na właściwą moc - reset
             return;
         }
-        */
     } //  good power
     return;
 }
@@ -311,14 +320,34 @@ void get_pwr()
     //
     Forward = get_forward();
     Reverse = get_reverse();
+#ifdef DEBUGi
+    if (Forward > 0)
+    {
+    Serial.print("Forward: ");
+    Serial.println(Forward);
+    }
+    if (Reverse > 0)
+    {
+    Serial.print("Reverse: ");
+    Serial.println(Reverse);
+    }
+#endif
     if (D_correction == 1)
         p = correction(Forward * 3);
     else
         p = Forward * 3;
-    //
+#ifdef DEBUGi
+    if (p > 0)
+    {
+    Serial.print("p: ");
+    Serial.println(p);
+    }
+#endif
+
     if (Reverse >= Forward)
         Forward = 999;
-    else {
+    else
+    {
         Forward = ((Forward + Reverse) * 100) / (Forward - Reverse);
         if (Forward > 999)
             Forward = 999;
@@ -333,23 +362,37 @@ void get_pwr()
     p = p + 0.5; // rounding to 0.1 W
     //
     PWR = p;
+#ifdef DEBUGi
+    if (PWR > 0)
+    {
+    Serial.print("PWR: ");
+    Serial.println(PWR);
+    }
+#endif
     if (PWR < 10)
         SWR = 1;
     else if (Forward < 100)
         SWR = 999;
     else
         SWR = Forward;
+#ifdef DEBUGi
+    if (PWR > 50)
+    {
+        Serial.print("SWR: ");
+        Serial.println(SWR);
+    }
+#endif
     return;
 }
 int get_forward()
 {
-    int Forward;
-    Forward = analogRead(FWD_PIN);
-    if (Forward > 1000)
+    int forward;
+    forward = analogRead(FWD_PIN);
+    if (forward > 1000)
         Overload = 1;
     else
         Overload = 0;
-    return Forward * 4.883; // zwraca napięcie w mV
+    return forward * 4.883; // zwraca napięcie w mV
 }
 int get_reverse()
 {
@@ -393,17 +436,11 @@ void show_pwr(int Power, int SWR)
     float a, b;
     int p_ant;
     float eff;
-    /*
-    lcd.setCursor(0, 0);
-    lcd.print(Power);
-    lcd.setCursor(0, 1);
-    lcd.print(SWR);
-    */
     if (Test == 0 & Loss_ind == 1 & SWR >= 100)
     {
         if (Loss_mode == 0)
         { // prepare
-            if (type == 4 | type == 5)
+            if (type == 4 || type == 5)
             { // 128*64 OLED
                 if (P_High == 1)
                     led_wr_str(4, 16, "ANT=  0W", 8);
@@ -411,7 +448,7 @@ void show_pwr(int Power, int SWR)
                     led_wr_str(4, 16, "ANT=0.0W", 8);
                 led_wr_str(6, 16, "EFF=  0%", 8);
             }
-            else if (type == 2 | type == 3)
+            else if (type == 2 || type == 3)
             { // 128*32 OLED
                 if (P_High == 1)
                     led_wr_str(0, 9, "ANT=  0W", 8);
@@ -446,16 +483,16 @@ void show_pwr(int Power, int SWR)
             if (Power >= 100)
             { // > 10 W
                 Power += 5; // rounding to 1 W
-        		itoa(Power, work_str, 7);
+        		itoa(Power, work_str, 10);
                 //IntToStr(Power, work_str);
-                work_str_2[0] = work_str[2];
-                work_str_2[1] = work_str[3];
-                work_str_2[2] = work_str[4];
+                work_str_2[0] = work_str[0];
+                work_str_2[1] = work_str[1];
+                work_str_2[2] = work_str[2];
                 work_str_2[3] = 'W';
             }
             else
             {
-        		itoa(Power, work_str, 7);
+        		itoa(Power, work_str, 10);
                 //IntToStr(Power, work_str);
                 if (work_str[4] != ' ')
                     work_str_2[0] = work_str[4];
@@ -471,31 +508,40 @@ void show_pwr(int Power, int SWR)
         }
         else
         { // High Power
-            if (Power < 999)
-            { // 0 - 1500 Watts
-        		itoa(Power, work_str, 7);
-                //IntToStr(Power, work_str);
-                work_str_2[0] = work_str[3];
-                work_str_2[1] = work_str[4];
-                work_str_2[2] = work_str[5];
-                work_str_2[3] = 'W';
-            }
-            else
-            {
-        		itoa(Power, work_str, 7);
-                //IntToStr(Power, work_str);
-                work_str_2[0] = work_str[2];
-                work_str_2[1] = work_str[3];
-                work_str_2[2] = work_str[4];
-                work_str_2[3] = work_str[5];
-            }
+        	if (Power >= 1000)
+        	{
+        		sprintf(work_str,"%4u", Power);
+        	}
+        	else
+        	{
+        		if (Power >=100)
+        		{
+        			sprintf(work_str,"%3uW", Power);
+        		}
+        		else if (Power >= 10)
+        		{
+        			sprintf(work_str," %2uW", Power);
+        		}
+        		else
+        		{
+        			sprintf(work_str,"  %1uW", Power);
+        		}
+        	}
+#ifdef DEBUG
+        		Serial.print("Power_str: _");
+        		Serial.print(work_str);
+        		Serial.println('_');
+#endif
         }
-        if (type == 4 | type == 5)
+
+        if ((type == 4) || (type == 5))
             led_wr_str(0, 16 + 4 * 12, work_str_2, 4); // 128*64 OLED
         else if (type != 0)
-            led_wr_str(0, 4, work_str_2, 4); // 1602  & 128*32
-        //
-
+        {
+        	// 1602  & 128*32
+            lcd.setCursor(4, 0);
+            lcd.print(work_str);
+        }
         //  Loss indication
         if (Loss_mode == 1)
         {
@@ -517,7 +563,7 @@ void show_pwr(int Power, int SWR)
                 if (p_ant >= 100)
                 { // > 10 W
                     p_ant += 5; // rounding to 1 W
-            		itoa(p_ant, work_str, 7);
+            		itoa(p_ant, work_str, 10);
                     //IntToStr(p_ant, work_str);
                     work_str_2[0] = work_str[2];
                     work_str_2[1] = work_str[3];
@@ -526,7 +572,7 @@ void show_pwr(int Power, int SWR)
                 }
                 else
                 {
-            		itoa(p_ant, work_str, 7);
+            		itoa(p_ant, work_str, 10);
                     //IntToStr(p_ant, work_str);
                     if (work_str[4] != ' ')
                         work_str_2[0] = work_str[4];
@@ -543,7 +589,7 @@ void show_pwr(int Power, int SWR)
             else
             { // High Power
                 if (p_ant < 999) { // 0 - 1500 Watts
-            		itoa(p_ant, work_str, 7);
+            		itoa(p_ant, work_str, 10);
                     //IntToStr(p_ant, work_str);
                     work_str_2[0] = work_str[3];
                     work_str_2[1] = work_str[4];
@@ -552,7 +598,7 @@ void show_pwr(int Power, int SWR)
                 }
                 else
                 {
-            		itoa(p_ant, work_str, 7);
+            		itoa(p_ant, work_str, 10);
                     //IntToStr(p_ant, work_str);
                     work_str_2[0] = work_str[2];
                     work_str_2[1] = work_str[3];
@@ -560,20 +606,20 @@ void show_pwr(int Power, int SWR)
                     work_str_2[3] = work_str[5];
                 }
             }
-            if (type == 4 | type == 5)
+            if (type == 4 || type == 5)
                 led_wr_str(4, 16 + 4 * 12, work_str_2, 4); // 128*64 OLED
-            else if (type == 2 | type == 3)
+            else if (type == 2 || type == 3)
                 led_wr_str(0, 13, work_str_2, 4); // 128*32
             else if (type == 1)
                 led_wr_str(0, 12, work_str_2, 4); // 1602
             //
-    		itoa(eff, work_str, 7);
+    		itoa(eff, work_str, 10);
             //IntToStr(eff, work_str);
             work_str_2[0] = work_str[4];
             work_str_2[1] = work_str[5];
-            if (type == 4 | type == 5)
+            if (type == 4 || type == 5)
                 led_wr_str(6, 16 + 5 * 12, work_str_2, 2);
-            else if (type == 2 | type == 3)
+            else if (type == 2 || type == 3)
                 led_wr_str(1, 14, work_str_2, 2);
             else if (type == 1)
                 led_wr_str(1, 13, work_str_2, 2);
@@ -581,7 +627,7 @@ void show_pwr(int Power, int SWR)
     }
     return;
 }
-void set_ind(char Ind)
+void set_ind(byte Ind)
 {
 #ifdef DEBUG
 	Serial.print("Ind: ");
@@ -597,7 +643,7 @@ void set_ind(char Ind)
     }
     delay(Rel_Del);
 }
-void set_cap(char Cap)
+void set_cap(byte Cap)
 {
 #ifdef DEBUG
 	Serial.print("Cap: ");
@@ -611,104 +657,97 @@ void set_cap(char Cap)
  */
 void lcd_ind()
 {
-
-	byte column;
+	byte wiersz;
+	// wyświetlanie indukcyjności:
+    int indu, indu_sub;
 	work_int = get_indu_nH(ind);
 	if (work_int > 9999)
 	{ // more then 9999 nH
-		work_int += 50; // round
-		//IntToStr(work_int, work_str);
-		itoa(work_int, work_str, 7);
-		work_str_2[0] = work_str[1];
-		work_str_2[1] = work_str[2];
-		work_str_2[2] = '.';
-		work_str_2[3] = work_str[3];
+	    indu = work_int / 1000;
+	    indu_sub = (work_int % 1000)/100;
+	    sprintf(work_str,"L=%2u.%01uu", indu, indu_sub);
 	}
 	else
 	{
-		//IntToStr(work_int, work_str);
-		itoa(work_int, work_str, 7);
-		if (work_str[2] != ' ')
-			work_str_2[0] = work_str[2];
-		else
-			work_str_2[0] = '0';
-		work_str_2[1] = '.';
-		if (work_str[3] != ' ')
-			work_str_2[2] = work_str[3];
-		else
-			work_str_2[2] = '0';
-		if (work_str[4] != ' ')
-			work_str_2[3] = work_str[4];
-		else
-			work_str_2[3] = '0';
+	    indu = work_int / 1000;
+	    indu_sub = (work_int % 1000)/10;
+	    sprintf(work_str,"L=%1u.%02uu", indu, indu_sub);
 	}
-	if ((type == 4) | (type == 5))
+	if ((type == 4) || (type == 5))
 	{ // 128*64 OLED
 		if (SW == 1)
-			column = 4;
+			wiersz = 4;
 		else
-			column = 6;
-		led_wr_str(column, 16, "L=", 2);
-		led_wr_str(column, 16 + 6 * 12, "uH", 2);
-		led_wr_str(column, 16 + 2 * 12, work_str_2, 4);
+			wiersz = 6;
+		led_wr_str(wiersz, 16, "L=", 2);
+		led_wr_str(wiersz, 16 + 6 * 12, "uH", 2);
+		led_wr_str(wiersz, 16 + 2 * 12, work_str_2, 4);
 	}
-	else if (type == 2 | type == 3)
+	else if (type == 2 || type == 3)
 	{ // 128*32 OLED
 		if (SW == 1)
-			column = 0;
+			wiersz = 0;
 		else
-			column = 1;
-		led_wr_str(column, 9, "L=", 2);
-		led_wr_str(column, 15, "uH", 2);
-		led_wr_str(column, 11, work_str_2, 4);
+			wiersz = 1;
+		led_wr_str(wiersz, 9, "L=", 2);
+		led_wr_str(wiersz, 15, "uH", 2);
+		led_wr_str(wiersz, 11, work_str_2, 4);
 	}
 	else if (type == 1)
 	{ //  1602 LCD
 		if (SW == 1)
-			column = 0;
+			wiersz = 0;
 		else
-			column = 1;
-		led_wr_str(column, 9, "L=", 2);
-		led_wr_str(column, 15, "u", 1);
-		led_wr_str(column, 11, work_str_2, 4);
+			wiersz = 1;
+		lcd.setCursor(9, wiersz);
+		lcd.print(work_str);
 	}
+	// wyświetlanie pojemności:
 	work_int = get_capa_pF(cap);
-	//IntToStr(work_int, work_str);
-	itoa(work_int, work_str, 7);
-	work_str_2[0] = work_str[2];
-	work_str_2[1] = work_str[3];
-	work_str_2[2] = work_str[4];
-	work_str_2[3] = work_str[5];
-	//
-	if (type == 4 | type == 5)
+	if (work_int >= 1000)
+	{
+		sprintf(work_str,"C=%4up", work_int);
+	}
+	else if (work_int >= 100)
+	{
+		sprintf(work_str,"C= %3up", work_int);
+	}
+	else if (work_int >= 10)
+	{
+		sprintf(work_str,"C=  %2up", work_int);
+	}
+	else
+	{
+		sprintf(work_str,"C=   %1up", work_int);
+	}
+	if (type == 4 || type == 5)
 	{ // 128*64 OLED
 		if (SW == 1)
-			column = 6;
+			wiersz = 6;
 		else
-			column = 4;
-		led_wr_str(column, 16, "C=", 2);
-		led_wr_str(column, 16 + 6 * 12, "pF", 2);
-		led_wr_str(column, 16 + 2 * 12, work_str_2, 4);
+			wiersz = 4;
+		led_wr_str(wiersz, 16, "C=", 2);
+		led_wr_str(wiersz, 16 + 6 * 12, "pF", 2);
+		led_wr_str(wiersz, 16 + 2 * 12, work_str_2, 4);
 	}
-	else if (type == 2 | type == 3)
+	else if (type == 2 || type == 3)
 	{ // 128*32 OLED
 		if (SW == 1)
-			column = 1;
+			wiersz = 1;
 		else
-			column = 0;
-		led_wr_str(column, 9, "C=", 2);
-		led_wr_str(column, 15, "pF", 2);
-		led_wr_str(column, 11, work_str_2, 4);
+			wiersz = 0;
+		led_wr_str(wiersz, 9, "C=", 2);
+		led_wr_str(wiersz, 15, "pF", 2);
+		led_wr_str(wiersz, 11, work_str_2, 4);
 	}
 	else if (type == 1)
 	{ // 1602 LCD
 		if (SW == 1)
-			column = 1;
+			wiersz = 1;
 		else
-			column = 0;
-		led_wr_str(column, 9, "C=", 2);
-		led_wr_str(column, 15, "p", 1);
-		led_wr_str(column, 11, work_str_2, 4);
+			wiersz = 0;
+		lcd.setCursor(9, wiersz);
+		lcd.print(work_str);
 	}
 	return;
 }
@@ -940,11 +979,11 @@ void sharp_cap()
     set_cap(cap);
     return;
 }
-void set_sw(char SW)
+void set_sw(byte SW)
 { // 0 - IN,  1 - OUT
 #ifdef DEBUG
 	Serial.print("SW: ");
-	Serial.println(SW);
+	Serial.println(SW, HEX);
 #endif
     digitalWrite(SW_PIN, SW);
     delay(Rel_Del);
@@ -1056,7 +1095,6 @@ void lcd_pwr()
 {
 	int p = 0;
 	char peak_cnt;
-	//int delta = Auto_delta - 100;
 	int delta;
 	char cnt;
 	int SWR_fixed = 1;
@@ -1086,9 +1124,9 @@ void lcd_pwr()
 	//
 	if (Auto & SWR_fixed >= Auto_delta
 			& ((SWR_fixed > SWR_fixed_old & (SWR_fixed - SWR_fixed_old) > delta)
-					| (SWR_fixed < SWR_fixed_old
+					|| (SWR_fixed < SWR_fixed_old
 							& (SWR_fixed_old - SWR_fixed) > delta)
-					| SWR_fixed_old == 999))
+					|| SWR_fixed_old == 999))
 		Soft_tune = 1;
 	//
 	if (button_pressed())
@@ -1099,7 +1137,7 @@ void lcd_pwr()
 			return;		// Fast return if button pressed
 	if (Overload == 1)
 	{
-		if (type == 4 | type == 5)
+		if (type == 4 || type == 5)
 		{ // 128*64 OLED
 			led_wr_str(2, 16, "        ", 8);
 			delay(100);
@@ -1147,49 +1185,63 @@ void lcd_swr(int swr)
         SWR_old = swr;
         if (swr == 1)
         { // Low power
-            if (type == 4 | type == 5)
+            if ((type == 4) || (type == 5))
                 led_wr_str(2, 16 + 4 * 12, "0.00", 4); // 128*64 OLED
             else if (type != 0)
                 led_wr_str(1, 4, "0.00", 4); // 1602  & 128*32 OLED
-            else if (type == 0)
-            { // real-time 2-colors led work
+             // real-time 2-colors led work
             	digitalWrite(GREEN_LED_PIN, HIGH);
             	digitalWrite(RED_LED_PIN, HIGH);
-            }
             SWR_old = 0;
         }
         else
         {
             SWR_old = swr;
-    		itoa(swr, work_str, 7);
+    		itoa(swr, work_str, 10);
+#ifdef DEBUG
+    		//if (swr > 100)
+    		if (true)
+    		{
+    			Serial.print("swr: ");
+    			Serial.println(swr);
+    			Serial.print("swr_str: _");
+    			Serial.print(work_str);
+    			Serial.println('_');
+    		}
+#endif
             //IntToStr(swr, work_str);
+    		/*
             work_str_2[0] = work_str[3];
             work_str_2[1] = '.';
             work_str_2[2] = work_str[4];
             work_str_2[3] = work_str[5];
-            if (type == 4 | type == 5)
-                led_wr_str(2, 16 + 4 * 12, work_str_2, 4); // 128*64 OLED
-            else if (type != 0)
-                led_wr_str(1, 4, work_str_2, 4); // 1602  & 128*32
-            else if (type == 0)
-            { // real-time 2-colors led work
-                if (swr <= 150)
-                {
-                	digitalWrite(GREEN_LED_PIN, LOW);
-                	digitalWrite(RED_LED_PIN, HIGH);
-                } // Green
-                else if (swr <= 250)
-                {
-                	digitalWrite(GREEN_LED_PIN, LOW);
-                	digitalWrite(RED_LED_PIN, LOW);
-                } // Orange
-                else
-                {
-                	digitalWrite(GREEN_LED_PIN, HIGH);
-                	digitalWrite(RED_LED_PIN, LOW);
-                } // Red
-            }
-        }
+            */
+            work_str_2[0] = work_str[0];
+            work_str_2[1] = '.';
+            work_str_2[2] = work_str[1];
+            work_str_2[3] = work_str[2];
+			if ((type == 4) || (type == 5))
+				led_wr_str(2, 16 + 4 * 12, work_str_2, 4); // 128*64 OLED
+			else if (type != 0)
+				led_wr_str(1, 4, work_str_2, 4); // 1602  & 128*32
+
+			// real-time 2-colors led work
+			if (swr <= 150)
+			{
+				digitalWrite(GREEN_LED_PIN, LOW);
+				digitalWrite(RED_LED_PIN, HIGH);
+			} // Green
+			else if (swr <= 250)
+			{
+				digitalWrite(GREEN_LED_PIN, LOW);
+				digitalWrite(RED_LED_PIN, LOW);
+			} // Orange
+			else
+			{
+				digitalWrite(GREEN_LED_PIN, HIGH);
+				digitalWrite(RED_LED_PIN, LOW);
+			} // Red
+		}
     }
     return;
 }
@@ -1204,12 +1256,12 @@ void dysp_off()
 bool button_pressed()
 {
 	bool zwrot = false;
-	if (digitalRead(TUNE_BUTTON_PIN) == LOW | digitalRead(AUTO_BUTTON_PIN) == LOW | digitalRead(BYPASS_BUTTON_PIN) == LOW)
+	if (digitalRead(TUNE_BUTTON_PIN) == LOW || digitalRead(AUTO_BUTTON_PIN) == LOW || digitalRead(BYPASS_BUTTON_PIN) == LOW)
 	{
 		tune_button.update();
 		auto_button.update();
 		bypass_button.update();
-		if (tune_button.pressed() | auto_button.pressed() | bypass_button.pressed())
+		if (tune_button.isPressed() || auto_button.isPressed() || bypass_button.isPressed())
 			zwrot = true;
 		else
 			zwrot = false;
@@ -1229,17 +1281,15 @@ void read_i2c_inputs()
     band.bit.b1 = digitalRead(BAND1_PIN);
     band.bit.b2 = digitalRead(BAND2_PIN);
     band.bit.b3 = digitalRead(BAND3_PIN);
-    mem_offset = ~band.bajt;
-#ifdef DEBUG
-    Serial.print("mem_offset: ");
-    Serial.println(mem_offset, HEX);
-#endif
+    mem_offset = (~band.bajt) & 0x0F;
 }
 void load_settings()
 {
     cap = EEPROM.read(255 - mem_offset * 5);
     ind = EEPROM.read(254 - mem_offset * 5);
     SW = EEPROM.read(253 - mem_offset * 5);
+    if (SW > 1)
+    	SW = 1;
     swr_a = EEPROM.read(252 - mem_offset * 5) * 256;
     swr_a += EEPROM.read(251 - mem_offset * 5);
     set_ind(ind);
@@ -1248,24 +1298,25 @@ void load_settings()
 }
 void Test_init(void)
 { // Test mode
-    if ((type == 4) | (type == 5)) // 128*64 OLED
+    if ((type == 4) || (type == 5)) // 128*64 OLED
         led_wr_str(0, 10, "TEST MODE", 9);
     else if (type != 0) // 1602 LCD  or 128*32 OLED
         led_wr_str(0, 3, "TEST MODE", 9);
     delay(2000);
-    if ((type == 4) | (type == 5)) // 128*64 OLED
+    if ((type == 4) || (type == 5)) // 128*64 OLED
         led_wr_str(0, 10, "         ", 9);
     else if (type != 0) // 1602 LCD  or 128*32 OLED
         led_wr_str(0, 3, "         ", 9);
     atu_reset();
     SW = 1; // C to OUT
     set_sw(SW);
-    /* ToDo zapis do EEPROM
-    EEPROM_Write(255 - mem_offset * 5, cap);
-    EEPROM_Write(254 - mem_offset * 5, ind);
-    EEPROM_Write(253 - mem_offset * 5, SW);
-    */
-    if (type == 4 | type == 5) // 128*64 OLED
+#ifdef DEBUG
+    Serial.println("Test init: zapis do EEPROM");
+#endif
+    EEPROM.write(255 - mem_offset * 5, cap);
+    EEPROM.write(254 - mem_offset * 5, ind);
+    EEPROM.write(253 - mem_offset * 5, SW);
+    if ((type == 4) || (type == 5)) // 128*64 OLED
         led_wr_str(0, 16 + 12 * 8, "l", 1);
     else if (type != 0) // 1602 LCD or 128*32 OLED
         led_wr_str(0, 8, "l", 1);
@@ -1277,7 +1328,19 @@ void Test_init(void)
 void button_proc(void)
 {
 	tune_button.update();
-    if (tune_button.pressed() | Soft_tune)
+#ifdef DEBUG
+	if (tune_button.isPressed())
+	{
+		Serial.print("tune.pressed: ");
+		Serial.println(tune_button.isPressed());
+	}
+	if (tune_button.isPressed())
+	{
+		Serial.print("tune.isPressed: ");
+		Serial.println(tune_button.isPressed());
+	}
+#endif
+    if (tune_button.isPressed() || Soft_tune)
     {
         dysp_on();
         dysp_cnt = Dysp_delay * dysp_cnt_mult;
@@ -1294,7 +1357,7 @@ void button_proc(void)
             btn_push();		// tutaj rozpoczęcie procedury strojenia
             bypas = 0;
             tune_button.update();
-            while (tune_button.pressed())
+            while (tune_button.isPressed())
             {
                 lcd_pwr();
                 tune_button.update();
@@ -1304,7 +1367,7 @@ void button_proc(void)
     }
     //
     bypass_button.update();
-    if (bypass_button.pressed())
+    if (bypass_button.isPressed())
     { // BYP button
         dysp_on();
         dysp_cnt = Dysp_delay * dysp_cnt_mult;
@@ -1337,7 +1400,7 @@ void button_proc(void)
                 lcd_ind();
             Auto = Auto_mem;
         }
-        if (type == 4 | type == 5)
+        if (type == 4 || type == 5)
         { // 128*64 OLED
             if (Auto & !bypas)
                 led_wr_str(0, 16 + 8 * 12, ".", 1);
@@ -1356,7 +1419,7 @@ void button_proc(void)
                 led_wr_str(0, 8, " ", 1);
         }
         bypass_button.update();
-        while (bypass_button.pressed())
+        while (bypass_button.isPressed())
         {
             lcd_pwr();
             bypass_button.update();
@@ -1364,7 +1427,7 @@ void button_proc(void)
     }
     //
     auto_button.update();
-    if (auto_button.pressed() & bypas == 0)
+    if (auto_button.isPressed() & bypas == 0)
     { // Auto button
         dysp_on();
         dysp_cnt = Dysp_delay * dysp_cnt_mult;
@@ -1372,10 +1435,11 @@ void button_proc(void)
             Auto = 1;
         else
             Auto = 0;
-        /* ToDo zapis auto do EEPROM
-        EEPROM_Write(2, Auto);
-        */
-        if (type == 4 | type == 5)
+#ifdef DEBUG
+    Serial.println("Auto_button:: zapis do EEPROM");
+#endif
+        EEPROM.write(2, Auto);
+        if (type == 4 || type == 5)
         { // 128*64 OLED
             if (Auto & !bypas)
                 led_wr_str(0, 16 + 8 * 12, ".", 1);
@@ -1394,7 +1458,7 @@ void button_proc(void)
                 led_wr_str(0, 8, " ", 1);
         }
         auto_button.update();
-        while (auto_button.pressed())
+        while (auto_button.isPressed())
         {
             lcd_pwr();
             auto_button.update();
@@ -1407,20 +1471,21 @@ void show_reset()
     atu_reset();
     SW = 1;
     set_sw(SW);
-    /* ToDo ewentualny zapis do EEPROM
-    EEPROM_Write(255 - mem_offset * 5, 0);
-    EEPROM_Write(254 - mem_offset * 5, 0);
-    EEPROM_Write(253 - mem_offset * 5, 1);
-    EEPROM_Write(252 - mem_offset * 5, 0);
-    EEPROM_Write(251 - mem_offset * 5, 0);
-    */
+#ifdef DEBUG
+    Serial.println("show_reset: zapis do EEPROM");
+#endif
+    EEPROM.write(255 - mem_offset * 5, 0);
+    EEPROM.write(254 - mem_offset * 5, 0);
+    EEPROM.write(253 - mem_offset * 5, 1);
+    EEPROM.write(252 - mem_offset * 5, 0);
+    EEPROM.write(251 - mem_offset * 5, 0);
     lcd_ind();
     Loss_mode = 0;
     digitalWrite(TX_REQUEST_PIN, HIGH);
     SWR = 0;
     PWR = 0;
     SWR_fixed_old = 0;
-    if (type == 4 | type == 5)
+    if ((type == 4) || (type == 5))
     { // 128*64 OLED
         led_wr_str(2, 16, "RESET   ", 8);
         delay(600);
@@ -1447,43 +1512,36 @@ void show_reset()
  */
 void btn_push()
 {
-    if (type == 4 | type == 5)
+    if ((type == 4) || (type == 5))
     { // 128*64 OLED
         led_wr_str(2, 16 + 12 * 4, "TUNE", 4);
-    } else if (type != 0)
+    }
+    else if (type != 0)
     { // 1602 LCD & 128*32 OLED
         led_wr_str(1, 4, "TUNE", 4);
     }
-    else
-    {
-    	digitalWrite(GREEN_LED_PIN, HIGH);
-    	digitalWrite(RED_LED_PIN, HIGH);
-    }
+	digitalWrite(GREEN_LED_PIN, HIGH);
+	digitalWrite(RED_LED_PIN, HIGH);
     tune();		// strojenie
-    if (type == 0)
-    { // real-time 2-colors led work
-        if (SWR <= 150) {
-        	digitalWrite(GREEN_LED_PIN, LOW);
-        	digitalWrite(RED_LED_PIN, HIGH);
-        } // Green
-        else if (SWR <= 250) {
-        	digitalWrite(GREEN_LED_PIN, LOW);
-        	digitalWrite(RED_LED_PIN, LOW);
-        } // Orange
-        else {
-        	digitalWrite(GREEN_LED_PIN, HIGH);
-        	digitalWrite(RED_LED_PIN, LOW);
-        } // Red
-    }
-    else if ((Loss_mode == 0) | (Loss_ind == 0))
+	// real-time 2-colors led work
+	if (SWR <= 150)
+	{
+		digitalWrite(GREEN_LED_PIN, LOW);
+		digitalWrite(RED_LED_PIN, HIGH);
+	} // Green
+	else if (SWR <= 250)
+	{
+		digitalWrite(GREEN_LED_PIN, LOW);
+		digitalWrite(RED_LED_PIN, LOW);
+	} // Orange
+	else
+	{
+		digitalWrite(GREEN_LED_PIN, HIGH);
+		digitalWrite(RED_LED_PIN, LOW);
+	} // Red
+    if ((Loss_mode == 0) || (Loss_ind == 0))
         lcd_ind();
-    /* ToDo zapis do EEPROM
-    EEPROM_Write(255 - mem_offset * 5, cap);
-    EEPROM_Write(254 - mem_offset * 5, ind);
-    EEPROM_Write(253 - mem_offset * 5, SW);
-    EEPROM_Write(252 - mem_offset * 5, swr_a / 256);
-    EEPROM_Write(251 - mem_offset * 5, swr_a % 256);
-    */
+    tune_zapis();
     SWR_old = 10000;
     Power_old = 10000;
     lcd_pwr();
@@ -1494,7 +1552,7 @@ void btn_push()
 void button_proc_test(void)
 {
 	tune_button.update();
-    if (tune_button.pressed())
+    if (tune_button.isPressed())
     { // Tune btn
         delay(250);
         if (digitalRead(TUNE_BUTTON_PIN) == 1)
@@ -1514,21 +1572,21 @@ void button_proc_test(void)
                 L = 1;
             if (L == 1)
             {
-                if (type == 4 | type == 5) // 128*64 OLED
+                if (type == 4 || type == 5) // 128*64 OLED
                     led_wr_str(0, 16 + 12 * 8, "l", 1);
                 else if (type != 0) // 1602 LCD & 128*32 OLED
                     led_wr_str(0, 8, "l", 1);
             }
             else
             {
-                if (type == 4 | type == 5) // 128*64 OLED
+                if (type == 4 || type == 5) // 128*64 OLED
                     led_wr_str(0, 16 + 12 * 8, "c", 1);
                 else if (type != 0) // 1602 LCD & 128*32 OLED
                     led_wr_str(0, 8, "c", 1);
             }
         }
         tune_button.update();
-        while (tune_button.pressed())
+        while (tune_button.isPressed())
         {
             lcd_pwr();
             tune_button.update();
@@ -1536,16 +1594,16 @@ void button_proc_test(void)
     } // END Tune btn
     //
     bypass_button.update();
-    if (bypass_button.pressed())
+    if (bypass_button.isPressed())
     { // BYP button
         while (digitalRead(BYPASS_BUTTON_PIN) == 0)
         {
-            if (L & ind < 32 * L_mult - 1)
+            if (L && ind < (32 * L_mult - 1))
             {
                 ind++;
                 set_ind(ind);
             }
-            else if (!L & cap < 32 * C_mult - 1)	// było L_mult
+            else if (!L && cap < (32 * C_mult - 1))	// było L_mult
             {
                 cap++;
                 set_cap(cap);
@@ -1557,16 +1615,16 @@ void button_proc_test(void)
     } // end of BYP button
     //
     auto_button.update();
-    if (auto_button.pressed() & (bypas == 0))
+    if (auto_button.isPressed() & (bypas == 0))
     { // Auto button
         while (digitalRead(AUTO_BUTTON_PIN) == 0)
         {
-            if (L & (ind > 0))
+            if (L && (ind > 0))
             {
                 ind--;
                 set_ind(ind);
             }
-            else if (!L & (cap > 0))
+            else if (!L && (cap > 0))
             {
                 cap--;
                 set_cap(cap);
@@ -1580,24 +1638,38 @@ void button_proc_test(void)
 }
 void cells_init(void)
 {
+	// ToDo domyślny zapis w EEPROM
+	// ToDo odczyt ustawień z EEPROM
     // Cells init
-    //oled_addr = EEPROM.read(0); // address
     type = EEPROM.read(1); // type of display
+    type = 1;	// 1602
+    Auto = 0;
     if (EEPROM.read(2) == 1)
         Auto = 1;
     Rel_Del = Bcd2Dec(EEPROM.read(3)); // Relay's Delay
+    Rel_Del = 30;
     Auto_delta = Bcd2Dec(EEPROM.read(4)) * 10; // Auto_delta
+    Auto_delta = 130;
     min_for_start = Bcd2Dec(EEPROM.read(5)) * 10; // P_min_for_start
+    min_for_start = 30;
     max_for_start = Bcd2Dec(EEPROM.read(6)) * 10; // P_max_for_start
+    max_for_start = 0;
     // 7  - shift down
     // 8 - shift left
     max_swr = Bcd2Dec(EEPROM.read(9)) * 10; // Max SWR
+    max_swr = 0;
     L_q = EEPROM.read(10);
+    L_q = 7;
     L_linear = EEPROM.read(11);
+    L_linear = 0;
     C_q = EEPROM.read(12);
+    C_q = 8;
     C_linear = EEPROM.read(13);
+    C_linear = 0;
     D_correction = EEPROM.read(14);
+    D_correction = 1;
     L_invert = EEPROM.read(15);
+    L_invert = 0;
     //
     Ind1 = Bcd2Dec(EEPROM.read(16)) * 100 + Bcd2Dec(EEPROM.read(17)); // Ind1
     Ind2 = Bcd2Dec(EEPROM.read(18)) * 100 + Bcd2Dec(EEPROM.read(19)); // Ind2
@@ -1607,6 +1679,8 @@ void cells_init(void)
     Ind6 = Bcd2Dec(EEPROM.read(26)) * 100 + Bcd2Dec(EEPROM.read(27)); // Ind6
     Ind7 = Bcd2Dec(EEPROM.read(28)) * 100 + Bcd2Dec(EEPROM.read(29)); // Ind7
     //
+    Ind1 = 50, Ind2 = 100, Ind3 = 220, Ind4 = 450, Ind5 = 1000, Ind6 = 2200, Ind7 = 4400;
+
     Cap1 = Bcd2Dec(EEPROM.read(32)) * 100 + Bcd2Dec(EEPROM.read(33)); // Cap1
     Cap2 = Bcd2Dec(EEPROM.read(34)) * 100 + Bcd2Dec(EEPROM.read(35)); // Cap2
     Cap3 = Bcd2Dec(EEPROM.read(36)) * 100 + Bcd2Dec(EEPROM.read(37)); // Cap3
@@ -1615,15 +1689,33 @@ void cells_init(void)
     Cap6 = Bcd2Dec(EEPROM.read(42)) * 100 + Bcd2Dec(EEPROM.read(43)); // Cap6
     Cap7 = Bcd2Dec(EEPROM.read(44)) * 100 + Bcd2Dec(EEPROM.read(45)); // Cap7
     Cap8 = Bcd2Dec(EEPROM.read(46)) * 100 + Bcd2Dec(EEPROM.read(47)); // Cap8
+
+    Cap1 = 10, Cap2 = 22, Cap3 = 47, Cap4 = 100, Cap5 = 220, Cap6 = 470, Cap7 = 1000, Cap8 = 1820;
     //
     P_High = EEPROM.read(0x30); // High power
+    P_High = 1;
     K_Mult = Bcd2Dec(EEPROM.read(0x31)); // Tandem Natch rate
+    K_Mult = 24;
     Dysp_delay = Bcd2Dec(EEPROM.read(0x32)); // Dysplay ON delay
+    Dysp_delay = 20;
     Loss_ind = EEPROM.read(0x33);
+    Loss_ind = 0;
     Fid_loss = Bcd2Dec(EEPROM.read(0x34));
+    Fid_loss = 0;
     return;
 }
 uint8_t Bcd2Dec(uint8_t n)
 {
   return ((n / 16 * 10) + (n % 16));
+}
+void tune_zapis()
+{
+#ifdef DEBUG
+    Serial.println("btn_push: zapis do EEPROM");
+#endif
+    EEPROM.write(255 - mem_offset * 5, cap);
+    EEPROM.write(254 - mem_offset * 5, ind);
+    EEPROM.write(253 - mem_offset * 5, SW);
+    EEPROM.write(252 - mem_offset * 5, swr_a / 256);
+    EEPROM.write(251 - mem_offset * 5, swr_a % 256);
 }
