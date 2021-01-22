@@ -66,5 +66,6 @@ void Test_init(void);
 void cells_init(void);
 uint8_t Bcd2Dec(uint8_t n);
 void tune_zapis();
+void set_multis();
 
 #endif /* STEROWNIK_ATU_100_H_ */

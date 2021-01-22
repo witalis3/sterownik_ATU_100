@@ -26,7 +26,7 @@ Button manual_button = Button();
 byte rready = 0, p_cnt = 0, lcd_prep_short = 0, Auto;
 byte type = 1, Soft_tune = 0;	// 1602
 char work_char, work_str[7], work_str_2[7];
-char Test = 0, Restart = 0, Loss_mode = 0, Fid_loss;
+byte Test = 0, Restart = 0, Loss_mode = 0, Fid_loss;
 int Power = 0, Power_old = 10000;
 int SWR_old = 10000;
 int P_max, SWR, PWR, swr_a, work_int;
@@ -34,19 +34,19 @@ int SWR_fixed_old = 0;
 int Cap1, Cap2, Cap3, Cap4, Cap5, Cap6, Cap7, Cap8;
 //int Cap1 = 10, Cap2 = 22, Cap3 = 47, Cap4 = 100, Cap5 = 220, Cap6 = 470, Cap7 = 1000, Cap8 = 1820;
 int Ind1, Ind2, Ind3, Ind4, Ind5, Ind6, Ind7, Ind8;
-char Dysp_delay = 0;
+byte Dysp_delay = 0;
 int dysp_cnt = 0;
 float dysp_cnt_mult = 2.3;
 int Auto_delta;
 byte L = 1, but = 0;
-static byte ind = 0, cap = 0, SW = 0, step_cap = 0, step_ind = 0, L_linear = 0, C_linear = 0, L_q = 7, C_q = 8, Overload = 0,
+byte ind = 0, cap = 0, SW = 0, step_cap = 0, step_ind = 0, L_linear = 0, C_linear = 0, L_q = 7, C_q = 8, Overload = 0,
 		D_correction = 1, K_Mult = 24, P_High = 1, L_invert = 0, Loss_ind = 0;
-static byte L_mult = 4, C_mult = 8;		// ustawione na 7X8
+byte L_mult = 4, C_mult = 8;		// ustawione na 7X8
 
-static int Rel_Del = 15, min_for_start, max_for_start, max_swr = 0;
+int Rel_Del = 30, min_for_start, max_for_start, max_swr = 0;
 byte mem_offset = 0;
 byte offset;
-char bypas = 0, cap_mem = 0, ind_mem = 0, SW_mem = 0, Auto_mem = 0;
+byte bypas = 0, cap_mem = 0, ind_mem = 0, SW_mem = 0, Auto_mem = 0;
 
 union swaper
 {
@@ -102,7 +102,7 @@ void setup()
 	dysp_cnt = Dysp_delay * dysp_cnt_mult;
     //
     delay(300);
-    if ((digitalRead(BYPASS_BUTTON_PIN) == 0) & (digitalRead(AUTO_BUTTON_PIN) == 0))
+    if ((digitalRead(BYPASS_BUTTON_PIN) == 0) && (digitalRead(AUTO_BUTTON_PIN) == 0))
     { // Test mode
         Test = 1;
         Auto = 0;
@@ -203,6 +203,9 @@ void tune()
     P_max = 0;
     //
     rready = 0;
+#ifdef DEBUG
+    Serial.print("tune:");
+#endif
     get_swr();
     if (SWR < 110)
         return;
@@ -214,7 +217,7 @@ void tune()
     swr_a = SWR;
     if (SWR < 110)
         return;
-    if ((max_swr > 110) & (SWR > max_swr))
+    if ((max_swr > 110) && (SWR > max_swr))
     	// max_swr - zawartość komórki 9 (domyślnie 0)
         return;
     //
@@ -235,6 +238,7 @@ void tune()
         step_ind = L_mult;
         L_mult = 1;
         sharp_ind();
+        set_multis();	// ustawienie mult do pierwotnej wartości
     }
     if (SWR < 120)
         return;
@@ -244,22 +248,9 @@ void tune()
         step_cap = C_mult; // = C_mult
         C_mult = 1;
         sharp_cap();
+        set_multis();	// ustawienie mult do pierwotnej wartości
     }
     // ToDo po co to? -> powrót do pierwotnych wartości?
-    if (L_q == 5)
-        L_mult = 1;
-    else if (L_q == 6)
-        L_mult = 2;
-    else if (L_q == 7)
-        L_mult = 4;
-    if (C_q == 5)
-        C_mult = 1;
-    else if (C_q == 6)
-        C_mult = 2;
-    else if (C_q == 7)
-        C_mult = 4;
-    else if (C_q == 8)		// 8 kondensatorów
-    	C_mult = 8;
     return;
 }
 void get_swr()
@@ -277,7 +268,7 @@ void get_swr()
         show_pwr(P_max, SWR);
         P_max = 0;
     }
-    while ((PWR < min_for_start) || ((PWR > max_for_start) & (max_for_start > 0)))
+    while ((PWR < min_for_start) || ((PWR > max_for_start) && (max_for_start > 0)))
     { // waiting for good power
 
         get_pwr();
@@ -296,7 +287,7 @@ void get_swr()
         tune_button.update();
         if (tune_button.read() == 1)
             rready = 1;
-        if ((rready == 1) & tune_button.pressed())
+        if ((rready == 1) && tune_button.pressed())
         { //  press button  Tune
             show_reset();
             SWR = 0;	// wskaźnik przerwania oczekiwania na właściwą moc - reset
@@ -311,6 +302,11 @@ void atu_reset()
     cap = 0;
     set_ind(ind);
     set_cap(cap);
+#ifdef DEBUG
+    Serial.print("atu_reset:SW:");
+    Serial.print(SW);
+    Serial.print(':');
+#endif
     delay(Rel_Del);
 }
 void get_pwr()
@@ -375,7 +371,7 @@ void get_pwr()
         SWR = 999;
     else
         SWR = Forward;
-#ifdef DEBUGi
+#ifdef DEBUG
     if (PWR > 50)
     {
         Serial.print("SWR: ");
@@ -436,7 +432,7 @@ void show_pwr(int Power, int SWR)
     float a, b;
     int p_ant;
     float eff;
-    if (Test == 0 & Loss_ind == 1 & SWR >= 100)
+    if ((Test == 0) && (Loss_ind == 1) && (SWR >= 100))
     {
         if (Loss_mode == 0)
         { // prepare
@@ -527,7 +523,7 @@ void show_pwr(int Power, int SWR)
         			sprintf(work_str,"  %1uW", Power);
         		}
         	}
-#ifdef DEBUG
+#ifdef DEBUGi
         		Serial.print("Power_str: _");
         		Serial.print(work_str);
         		Serial.println('_');
@@ -545,7 +541,7 @@ void show_pwr(int Power, int SWR)
         //  Loss indication
         if (Loss_mode == 1)
         {
-            if (ind == 0 & cap == 0)
+            if (ind == 0 && cap == 0)
                 swr_a = SWR;
             a = 1.0 / ((swr_a / 100.0 + 100.0 / swr_a) * Fid_loss / 10.0 * 0.115 + 1.0); // Fider loss
             b = 4.0 / (2.0 + SWR / 100.0 + 100.0 / SWR); // SWR loss
@@ -631,7 +627,9 @@ void set_ind(byte Ind)
 {
 #ifdef DEBUG
 	Serial.print("Ind: ");
-	Serial.println(Ind, HEX);
+	Serial.print(Ind, HEX);
+	Serial.print(':');
+	Serial.println(get_indu_nH(Ind));
 #endif
     if (L_invert == 0)
     {
@@ -647,7 +645,9 @@ void set_cap(byte Cap)
 {
 #ifdef DEBUG
 	Serial.print("Cap: ");
-	Serial.println(Cap, HEX);
+	Serial.print(Cap, HEX);
+	Serial.print(':');
+	Serial.println(get_capa_pF(Cap));
 #endif
 	mcp_c.writeGPIO(Cap);	// ToDo sprawdzić poprawność wysyłania całego bajtu
     delay(Rel_Del);
@@ -756,6 +756,10 @@ void sub_tune()
     int swr_mem, ind_mem, cap_mem;
     //
     swr_mem = SWR;
+#ifdef DEBUG
+    Serial.print("sub_tune:swr_mem: ");
+    Serial.println(swr_mem);
+#endif
     coarse_tune();
     if (SWR == 0)
     {
@@ -784,8 +788,11 @@ void sub_tune()
     if (SWR < 120)
         return;
     //
-    if ((SWR < 200) & (SWR < swr_mem) & ((swr_mem - SWR) > 100))
+    /*
+    if ((SWR < 200) && (SWR < swr_mem) && ((swr_mem - SWR) > 100))
         return;
+        zależy mi na maksymalnie małym SWR a nie na szybkości
+        */
     swr_mem = SWR;
     ind_mem = ind;
     cap_mem = cap;
@@ -846,17 +853,25 @@ void sub_tune()
 }
 void coarse_tune()
 {
-    char step = 3;
-    char count;
-    char mem_cap, mem_step_cap;
+    byte step = 3;
+    byte count;
+    byte mem_cap, mem_step_cap;
     int min_swr;
 
     mem_cap = 0;
     step_ind = step;
     mem_step_cap = 3;
     min_swr = SWR + SWR / 20;
+#ifdef DEBUG
+    Serial.print("coarse_tune[L]:min_swr: ");
+    Serial.println(min_swr);
+#endif
     for (count = 0; count <= 31;)
     {
+#ifdef DEBUG
+        Serial.print("coarse_tune[L]:count: ");
+        Serial.println(count);
+#endif
         set_ind(count * L_mult);
         coarse_cap();
         get_swr();
@@ -865,6 +880,10 @@ void coarse_tune()
         if (SWR < min_swr)
         {
             min_swr = SWR + SWR / 20;
+#ifdef DEBUG
+    Serial.print("coarse_tune[L]:min_swr: ");
+    Serial.println(min_swr);
+#endif
             ind = count * L_mult;
             mem_cap = cap;
             step_ind = step;
@@ -872,9 +891,9 @@ void coarse_tune()
             if (SWR < 120)
                 break;
             count += step;
-            if ((L_linear == 0) & (count == 9))
+            if ((L_linear == 0) && (count == 9))
                 count = 8;
-            else if ((L_linear == 0) & (count == 17))
+            else if ((L_linear == 0) && (count == 17))
             {
                 count = 16;
                 step = 4;
@@ -884,7 +903,13 @@ void coarse_tune()
             break;
     }
     cap = mem_cap;
+#ifdef DEBUG
+    	Serial.print("coarse_tune[L]:set_ind:");
+#endif
     set_ind(ind);
+#ifdef DEBUG
+    	Serial.print("coarse_tune[L]:set_cap:");
+#endif
     set_cap(cap);
     step_cap = mem_step_cap;
     delay(10);
@@ -892,7 +917,7 @@ void coarse_tune()
 }
 void sharp_ind()
 {
-    char range, count, max_range, min_range;
+    byte range, count, max_range, min_range;
     int min_SWR;
     range = step_ind * L_mult;
     //
@@ -909,7 +934,16 @@ void sharp_ind()
     if (SWR == 0)
         return;
     min_SWR = SWR;
-    for (count = min_range + L_mult; count <= max_range; count += L_mult) {
+#ifdef DEBUG
+    Serial.print("sharp_ind:min_swr: ");
+    Serial.println(min_SWR);
+#endif
+    for (count = min_range + L_mult; count <= max_range; count += L_mult)
+    {
+#ifdef DEBUG
+    Serial.print("sharp_ind:count: ");
+    Serial.println(count, HEX);
+#endif
         set_ind(count);
         get_swr();
         if (SWR == 0)
@@ -927,6 +961,10 @@ void sharp_ind()
         if (SWR < min_SWR)
         {
             min_SWR = SWR;
+#ifdef DEBUG
+    Serial.print("sharp_ind:min_swr: ");
+    Serial.println(min_SWR);
+#endif
             ind = count;
             if (SWR < 120)
                 break;
@@ -938,7 +976,7 @@ void sharp_ind()
 }
 void sharp_cap()
 {
-    char range, count, max_range, min_range;
+    byte range, count, max_range, min_range;
     int min_SWR;
     range = step_cap * C_mult;
     //
@@ -955,7 +993,15 @@ void sharp_cap()
     if (SWR == 0)
         return;
     min_SWR = SWR;
+#ifdef DEBUG
+    Serial.print("sharp_cap:min_swr: ");
+    Serial.println(min_SWR);
+#endif
     for (count = min_range + C_mult; count <= max_range; count += C_mult) {
+#ifdef DEBUG
+    Serial.print("sharp_cap:count: ");
+    Serial.println(count, HEX);
+#endif
         set_cap(count);
         get_swr();
         if (SWR == 0)
@@ -969,6 +1015,10 @@ void sharp_cap()
             get_swr();
         }
         if (SWR < min_SWR) {
+#ifdef DEBUG
+    Serial.print("sharp_cap:min_swr: ");
+    Serial.println(min_SWR);
+#endif
             min_SWR = SWR;
             cap = count;
             if (SWR < 120)
@@ -990,9 +1040,11 @@ void set_sw(byte SW)
 }
 void coarse_cap()
 {
-    char step = 3;
-    char count;
+    byte step = 3;
+    byte count;
     int min_swr;
+    int coarse_swr_min;		// witek
+    byte coarse_cap = 0;	// witek
 
     cap = 0;
     set_cap(cap);
@@ -1000,23 +1052,42 @@ void coarse_cap()
     get_swr();
     if (SWR == 0)
         return;
+    coarse_swr_min = SWR;
     min_swr = SWR + SWR / 20;
-    for (count = step; count <= 31;) {
+#ifdef DEBUG
+    	Serial.print("coarse_cap:min_swr: ");
+    	Serial.println(min_swr);
+#endif
+    for (count = step; count <= 31;)
+    {
+#ifdef DEBUG
+    	Serial.print("coarse_cap:count: ");
+    	Serial.println(count);
+#endif
         set_cap(count * C_mult);
         get_swr();
         if (SWR == 0)
             return;
+        if (SWR < coarse_swr_min)
+        {
+        	coarse_swr_min = SWR;
+        	coarse_cap = count * C_mult;
+        }
         if (SWR < min_swr)
         {
             min_swr = SWR + SWR / 20;
+#ifdef DEBUG
+    	Serial.print("coarse_cap:min_swr: ");
+    	Serial.println(min_swr);
+#endif
             cap = count * C_mult;
             step_cap = step;
             if (SWR < 120)
                 break;
             count += step;
-            if ((C_linear == 0) & (count == 9))
+            if ((C_linear == 0) && (count == 9))
                 count = 8;
-            else if ((C_linear == 0) & (count == 17))
+            else if ((C_linear == 0) && (count == 17))
             {
                 count = 16;
                 step = 4;
@@ -1025,7 +1096,11 @@ void coarse_cap()
         else
             break;
     }
-    set_cap(cap);
+#ifdef DEBUG
+    	Serial.print("coarse_cap:set_cap:");
+#endif
+    //set_cap(cap);
+    	set_cap(coarse_cap);
     return;
 }
 void lcd_prep()
@@ -1094,9 +1169,9 @@ unsigned int get_capa_pF(byte capa)
 void lcd_pwr()
 {
 	int p = 0;
-	char peak_cnt;
+	byte peak_cnt;
 	int delta;
-	char cnt;
+	byte cnt;
 	int SWR_fixed = 1;
 	delta = Auto_delta - 100;
 	PWR = 0;
@@ -1121,11 +1196,11 @@ void lcd_pwr()
 		dysp_on(); // dysplay ON
 		dysp_cnt = Dysp_delay * dysp_cnt_mult;
 	}
-	//
-	if (Auto & SWR_fixed >= Auto_delta
-			& ((SWR_fixed > SWR_fixed_old & (SWR_fixed - SWR_fixed_old) > delta)
+	// ToDo sprawdzić logikę ;-)
+	if (Auto && SWR_fixed >= Auto_delta
+			&& ((SWR_fixed > SWR_fixed_old && (SWR_fixed - SWR_fixed_old) > delta)
 					|| (SWR_fixed < SWR_fixed_old
-							& (SWR_fixed_old - SWR_fixed) > delta)
+							&& (SWR_fixed_old - SWR_fixed) > delta)
 					|| SWR_fixed_old == 999))
 		Soft_tune = 1;
 	//
@@ -1209,13 +1284,6 @@ void lcd_swr(int swr)
     			Serial.println('_');
     		}
 #endif
-            //IntToStr(swr, work_str);
-    		/*
-            work_str_2[0] = work_str[3];
-            work_str_2[1] = '.';
-            work_str_2[2] = work_str[4];
-            work_str_2[3] = work_str[5];
-            */
             work_str_2[0] = work_str[0];
             work_str_2[1] = '.';
             work_str_2[2] = work_str[1];
@@ -1345,16 +1413,18 @@ void button_proc(void)
         dysp_on();
         dysp_cnt = Dysp_delay * dysp_cnt_mult;
         delay(250);
-        if (Soft_tune == 0 & digitalRead(TUNE_BUTTON_PIN) == 1)
-        { // short press button
+        if (Soft_tune == 0 && digitalRead(TUNE_BUTTON_PIN) == 1)
+        { // short press TUNE button
             show_reset();
             bypas = 0;
         }
         else
-        { // long press button
+        { // long press TUNE button
             digitalWrite(TX_REQUEST_PIN, LOW);
             delay(250); //
+
             btn_push();		// tutaj rozpoczęcie procedury strojenia
+
             bypas = 0;
             tune_button.update();
             while (tune_button.isPressed())
@@ -1368,7 +1438,7 @@ void button_proc(void)
     //
     bypass_button.update();
     if (bypass_button.isPressed())
-    { // BYP button
+    { // BYPASS button
         dysp_on();
         dysp_cnt = Dysp_delay * dysp_cnt_mult;
         if (bypas == 0) {
@@ -1402,18 +1472,18 @@ void button_proc(void)
         }
         if (type == 4 || type == 5)
         { // 128*64 OLED
-            if (Auto & !bypas)
+            if (Auto && !bypas)
                 led_wr_str(0, 16 + 8 * 12, ".", 1);
-            else if (!Auto & bypas)
+            else if (!Auto && bypas)
                 led_wr_str(0, 16 + 8 * 12, "_", 1);
             else
                 led_wr_str(0, 16 + 8 * 12, " ", 1);
         }
         else if (type != 0)
         { //  1602 LCD  or 128*32 OLED
-            if (Auto & !bypas)
+            if (Auto && !bypas)
                 led_wr_str(0, 8, ".", 1);
-            else if (!Auto & bypas)
+            else if (!Auto && bypas)
                 led_wr_str(0, 8, "_", 1);
             else
                 led_wr_str(0, 8, " ", 1);
@@ -1441,18 +1511,18 @@ void button_proc(void)
         EEPROM.write(2, Auto);
         if (type == 4 || type == 5)
         { // 128*64 OLED
-            if (Auto & !bypas)
+            if (Auto && !bypas)
                 led_wr_str(0, 16 + 8 * 12, ".", 1);
-            else if (!Auto & bypas)
+            else if (!Auto && bypas)
                 led_wr_str(0, 16 + 8 * 12, "_", 1);
             else
                 led_wr_str(0, 16 + 8 * 12, " ", 1);
         }
         else if (type != 0)
         { //  1602 LCD  or 128*32 OLED
-            if (Auto & !bypas)
+            if (Auto && !bypas)
                 led_wr_str(0, 8, ".", 1);
-            else if (!Auto & bypas)
+            else if (!Auto && bypas)
                 led_wr_str(0, 8, "_", 1);
             else
                 led_wr_str(0, 8, " ", 1);
@@ -1522,7 +1592,9 @@ void btn_push()
     }
 	digitalWrite(GREEN_LED_PIN, HIGH);
 	digitalWrite(RED_LED_PIN, HIGH);
+
     tune();		// strojenie
+
 	// real-time 2-colors led work
 	if (SWR <= 150)
 	{
@@ -1718,4 +1790,21 @@ void tune_zapis()
     EEPROM.write(253 - mem_offset * 5, SW);
     EEPROM.write(252 - mem_offset * 5, swr_a / 256);
     EEPROM.write(251 - mem_offset * 5, swr_a % 256);
+}
+void set_multis()
+{
+    if (L_q == 5)
+        L_mult = 1;
+    else if (L_q == 6)
+        L_mult = 2;
+    else if (L_q == 7)
+        L_mult = 4;
+    if (C_q == 5)
+        C_mult = 1;
+    else if (C_q == 6)
+        C_mult = 2;
+    else if (C_q == 7)
+        C_mult = 4;
+    else if (C_q == 8)		// 8 kondensatorów
+    	C_mult = 8;
 }

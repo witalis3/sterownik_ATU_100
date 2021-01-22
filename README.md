@@ -1,2 +1,2 @@
 # sterownik_ATU_100
-Uproszczona wersja oporgramowania ATU-100 wg N7DDC na procesor atmega328.
+Wersja oprogramowania ATU-100 wg N7DDC na procesor atmega328. W stosunku do oryginału została dołożona funkcjonalność zapisywania ustawień (skorzystałem z kodu i pomysłu SP4MK - pamiętane są wartości pojemności, indukcyjności i miejsca podłączenia kondensatorów) w pamięci EEPROM (16 lokacji adresowych uzależnionych od kodu podanego na 4 linie sygnałowe) oraz obsługa ósmego kondensatora (C8). Wprowadziłem także drobne korekty algorytmu strojenia.
