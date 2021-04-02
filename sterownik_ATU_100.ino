@@ -4,6 +4,11 @@
  * sterownik ATU na bazie ATU-100 wg N7DDC na procesor atmega328
  * SP3JDZ
  *
+ * ToDo
+ * - opcja 7x7 lub 7x8 do wyboru
+ * - pojawia się dwa razy reset po resecie ;-)
+ * - inne błędy...
+ *
  */
 #include "Arduino.h"
 #include "sterownik_ATU_100.h"
@@ -18,10 +23,10 @@ Adafruit_MCP23008 mcp_c;	// expander dla kondensatorów; sub adres 0x0
 Adafruit_MCP23008 mcp_l;	// expander dla cewek; sub adres 0x1
 
 #include "Bounce2.h"
-Button tune_button = Button();
-Button auto_button = Button();
-Button bypass_button = Button();
-Button manual_button = Button();
+Bounce2::Button tune_button = Bounce2::Button();
+Bounce2::Button auto_button = Bounce2::Button();
+Bounce2::Button bypass_button = Bounce2::Button();
+Bounce2::Button manual_button = Bounce2::Button();
 
 byte rready = 0, p_cnt = 0, lcd_prep_short = 0, Auto;
 byte type = 1, Soft_tune = 0;	// 1602
@@ -40,9 +45,9 @@ float dysp_cnt_mult = 2.3;
 int Auto_delta;
 byte L = 1, but = 0;
 byte ind = 0, cap = 0, SW = 0, step_cap = 0, step_ind = 0, L_linear = 0, C_linear = 0, L_q = 7, C_q = 8, Overload = 0,
-		D_correction = 1, K_Mult = 24, P_High = 1, L_invert = 0, Loss_ind = 0;
+		D_correction = 1, K_Mult, P_High = 1, L_invert = 0, Loss_ind = 0;
 byte L_mult = 4, C_mult = 8;		// ustawione na 7X8
-
+// Rel_Del opóźnienie przekaźnika
 int Rel_Del = 30, min_for_start, max_for_start, max_swr = 0;
 byte mem_offset = 0;
 byte offset;
@@ -73,8 +78,12 @@ void setup()
 	cells_init();
 	pinMode(SW_PIN, OUTPUT);
 	digitalWrite(SW_PIN, SW);
-	pinMode(TX_REQUEST_PIN, OUTPUT);
-	digitalWrite(TX_REQUEST_PIN, HIGH);		// TX request stan aktywny niski
+	pinMode(TX_REQUEST_PIN1, OUTPUT);
+	digitalWrite(TX_REQUEST_PIN1, LOW);		// TX request; stan aktywny wysoki
+	pinMode(TX_REQUEST_PIN2, OUTPUT);
+	digitalWrite(TX_REQUEST_PIN2, LOW);		// TX request; stan aktywny wysoki + opóźnienie
+	pinMode(MANUAL_LED_PIN, OUTPUT);
+	digitalWrite(MANUAL_LED_PIN, LOW);		// 	sygnalizacja trybu ręcznego; stan aktywny wysoki
 	// LEDy jako wyświetlacz:
 	pinMode(GREEN_LED_PIN, OUTPUT);
 	digitalWrite(GREEN_LED_PIN, HIGH);
@@ -128,10 +137,18 @@ void setup()
     // expandery do obsługi przekaźników
     mcp_l.begin(1);
 	mcp_l.writeGPIO(0x0);		// wszystkie przekaźniki wyłączone
-	mcp_l.write8(MCP23008_IODIR, 0);	// wszystkie piny jako wyjścia
+	for (int var = 0; var < 8; ++var)
+	{
+		mcp_l.pinMode(var, OUTPUT);
+	}
+	//mcp_l.write8(MCP23008_IODIR, 0);	// wszystkie piny jako wyjścia
 	mcp_c.begin(0);
 	mcp_c.writeGPIO(0x0);		// wszystkie przekaźniki wyłączone
-	mcp_c.write8(MCP23008_IODIR, 0);	// wszystkie piny jako wyjścia
+	for (int var = 0; var < 8; ++var)
+	{
+		mcp_c.pinMode(var, OUTPUT);
+	}
+	//mcp_c.write8(MCP23008_IODIR, 0);	// wszystkie piny jako wyjścia
 
     if (Test == 0)
     {
@@ -156,6 +173,8 @@ void loop()
     {
     	if (Test == 0)
     	{
+    		digitalWrite(MANUAL_LED_PIN, HIGH);
+            digitalWrite(TX_REQUEST_PIN1, HIGH);
     		Test = 1;
     		lcd.setCursor(8, 0);
     		lcd.print("l");
@@ -164,6 +183,8 @@ void loop()
     	}
     	else if (Test == 1)
     	{
+    		digitalWrite(MANUAL_LED_PIN, LOW);
+            digitalWrite(TX_REQUEST_PIN1, LOW);
     		Test = 0;
     		lcd.setCursor(8, 0);
     		lcd.print(" ");
@@ -1420,8 +1441,12 @@ void button_proc(void)
         }
         else
         { // long press TUNE button
-            digitalWrite(TX_REQUEST_PIN, LOW);
+            digitalWrite(TX_REQUEST_PIN1, HIGH);
             delay(250); //
+#ifdef SP2HYO
+            delay(1000);	// dodatkowe opóźnienie dla TX_REQUEST_PIN2
+#endif
+            digitalWrite(TX_REQUEST_PIN2, HIGH);
 
             btn_push();		// tutaj rozpoczęcie procedury strojenia
 
@@ -1551,7 +1576,8 @@ void show_reset()
     EEPROM.write(251 - mem_offset * 5, 0);
     lcd_ind();
     Loss_mode = 0;
-    digitalWrite(TX_REQUEST_PIN, HIGH);
+    digitalWrite(TX_REQUEST_PIN1, LOW);
+    digitalWrite(TX_REQUEST_PIN2, LOW);
     SWR = 0;
     PWR = 0;
     SWR_fixed_old = 0;
@@ -1618,7 +1644,8 @@ void btn_push()
     Power_old = 10000;
     lcd_pwr();
     SWR_fixed_old = SWR;
-    digitalWrite(TX_REQUEST_PIN, HIGH);
+    digitalWrite(TX_REQUEST_PIN1, LOW);
+    digitalWrite(TX_REQUEST_PIN2, LOW);
     return;
 }
 void button_proc_test(void)
@@ -1723,7 +1750,11 @@ void cells_init(void)
     Auto_delta = Bcd2Dec(EEPROM.read(4)) * 10; // Auto_delta
     Auto_delta = 130;
     min_for_start = Bcd2Dec(EEPROM.read(5)) * 10; // P_min_for_start
+#ifdef SP2HYO
+    min_for_start = 10;
+#else
     min_for_start = 30;
+#endif
     max_for_start = Bcd2Dec(EEPROM.read(6)) * 10; // P_max_for_start
     max_for_start = 0;
     // 7  - shift down
@@ -1767,7 +1798,12 @@ void cells_init(void)
     P_High = EEPROM.read(0x30); // High power
     P_High = 1;
     K_Mult = Bcd2Dec(EEPROM.read(0x31)); // Tandem Natch rate
+
+#ifdef SP2HYO
+    K_Mult = 33;
+#else
     K_Mult = 24;
+#endif
     Dysp_delay = Bcd2Dec(EEPROM.read(0x32)); // Dysplay ON delay
     Dysp_delay = 20;
     Loss_ind = EEPROM.read(0x33);

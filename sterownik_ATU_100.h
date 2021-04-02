@@ -11,6 +11,7 @@
 #define STEROWNIK_ATU_100_H_
 
 #define DEBUG
+#define SP2HYO
 
 #define TUNE_BUTTON_PIN		7
 #define AUTO_BUTTON_PIN		5
@@ -19,9 +20,11 @@
 #define FWD_PIN				A7
 #define REF_PIN				A6
 #define SW_PIN				A1	// przełączanie kondensatorów przód tył IN/OUT
-#define TX_REQUEST_PIN		11	// żądanie nadawania dla TRX
+#define TX_REQUEST_PIN1		11	// żądanie nadawania dla TRX
+#define TX_REQUEST_PIN2		A2	// żądanie nadawania dla TRX drugie
 #define GREEN_LED_PIN		9
 #define RED_LED_PIN			10
+#define MANUAL_LED_PIN		13	// sygnalizacja trybu strojenia ręcznego
 #define BAND0_PIN			8
 #define BAND1_PIN			2
 #define BAND2_PIN			3
