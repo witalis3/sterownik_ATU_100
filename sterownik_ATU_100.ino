@@ -37,7 +37,7 @@ int SWR_old = 10000;
 int P_max, SWR, PWR, swr_a, work_int;
 int SWR_fixed_old = 0;
 int Cap1, Cap2, Cap3, Cap4, Cap5, Cap6, Cap7, Cap8;
-//int Cap1 = 10, Cap2 = 22, Cap3 = 47, Cap4 = 100, Cap5 = 220, Cap6 = 470, Cap7 = 1000, Cap8 = 1820;
+//int Cap1 = 10, Cap2 = 22, Cap3 = 22+22, Cap4 = 47+47, Cap5 = 100+100, Cap6 = 220+220, Cap7 = 470+470, Cap8 = 1000+820;
 int Ind1, Ind2, Ind3, Ind4, Ind5, Ind6, Ind7, Ind8;
 byte Dysp_delay = 0;
 int dysp_cnt = 0;
@@ -47,8 +47,8 @@ byte L = 1, but = 0;
 byte ind = 0, cap = 0, SW = 0, step_cap = 0, step_ind = 0, L_linear = 0, C_linear = 0, L_q = 7, C_q = 8, Overload = 0,
 		D_correction = 1, K_Mult, P_High = 1, L_invert = 0, Loss_ind = 0;
 byte L_mult = 4, C_mult = 8;		// ustawione na 7X8
-// Rel_Del opóźnienie przekaźnika
-int Rel_Del = 30, min_for_start, max_for_start, max_swr = 0;
+// Rel_Del opóźnienie przekaźnika (50 HYO)
+int Rel_Del = 50, min_for_start, max_for_start, max_swr = 0;
 byte mem_offset = 0;
 byte offset;
 byte bypas = 0, cap_mem = 0, ind_mem = 0, SW_mem = 0, Auto_mem = 0;
@@ -89,6 +89,8 @@ void setup()
 	digitalWrite(GREEN_LED_PIN, HIGH);
 	pinMode(RED_LED_PIN, OUTPUT);
 	digitalWrite(RED_LED_PIN, HIGH);
+	pinMode(YELLOW_LED_PIN, OUTPUT);
+	digitalWrite(YELLOW_LED_PIN, HIGH);
 	// band data:
 	pinMode(BAND0_PIN, INPUT_PULLUP);
 	pinMode(BAND1_PIN, INPUT_PULLUP);
@@ -141,15 +143,16 @@ void setup()
 	{
 		mcp_l.pinMode(var, OUTPUT);
 	}
-	//mcp_l.write8(MCP23008_IODIR, 0);	// wszystkie piny jako wyjścia
 	mcp_c.begin(0);
 	mcp_c.writeGPIO(0x0);		// wszystkie przekaźniki wyłączone
 	for (int var = 0; var < 8; ++var)
 	{
 		mcp_c.pinMode(var, OUTPUT);
 	}
-	//mcp_c.write8(MCP23008_IODIR, 0);	// wszystkie piny jako wyjścia
-
+/*
+ * tryb pracy "Test" = ręczne strojenie skrzynki
+ *
+ */
     if (Test == 0)
     {
         read_i2c_inputs();
@@ -203,7 +206,7 @@ void loop()
         dysp_cnt--;
     else if ((Test == 0) && (Dysp_delay != 0))
         dysp_off();
-    // memo_code
+    // memo_code -> obsługa pamięci ustawień dla poszczególnych kodów DCBA
     offset = mem_offset;
     read_i2c_inputs();
     if (offset != mem_offset)
@@ -1285,9 +1288,12 @@ void lcd_swr(int swr)
                 led_wr_str(2, 16 + 4 * 12, "0.00", 4); // 128*64 OLED
             else if (type != 0)
                 led_wr_str(1, 4, "0.00", 4); // 1602  & 128*32 OLED
-             // real-time 2-colors led work
+             // real-time 2-colors led work or 3 colors (SP2HYO)
             	digitalWrite(GREEN_LED_PIN, HIGH);
             	digitalWrite(RED_LED_PIN, HIGH);
+#ifdef SP2HYO
+            	digitalWrite(YELLOW_LED_PIN, HIGH);
+#endif
             SWR_old = 0;
         }
         else
@@ -1314,21 +1320,33 @@ void lcd_swr(int swr)
 			else if (type != 0)
 				led_wr_str(1, 4, work_str_2, 4); // 1602  & 128*32
 
-			// real-time 2-colors led work
+			// real-time 2-colors led work or 3 colors (SP2HYO)
 			if (swr <= 150)
 			{
 				digitalWrite(GREEN_LED_PIN, LOW);
 				digitalWrite(RED_LED_PIN, HIGH);
+#ifdef SP2HYO
+				digitalWrite(YELLOW_LED_PIN, HIGH);
+#endif
 			} // Green
 			else if (swr <= 250)
 			{
+#ifdef SP2HYO
+				digitalWrite(YELLOW_LED_PIN, LOW);
+				digitalWrite(RED_LED_PIN, HIGH);
+				digitalWrite(GREEN_LED_PIN, HIGH);
+#else
 				digitalWrite(GREEN_LED_PIN, LOW);
 				digitalWrite(RED_LED_PIN, LOW);
+#endif
 			} // Orange
 			else
 			{
 				digitalWrite(GREEN_LED_PIN, HIGH);
 				digitalWrite(RED_LED_PIN, LOW);
+#ifdef SP2HYO
+				digitalWrite(YELLOW_LED_PIN, HIGH);
+#endif
 			} // Red
 		}
     }
@@ -1596,6 +1614,9 @@ void show_reset()
     {
     	digitalWrite(GREEN_LED_PIN, HIGH);
     	digitalWrite(RED_LED_PIN, HIGH);
+#ifdef SP2HYO
+    	digitalWrite(YELLOW_LED_PIN, HIGH);
+#endif
     }
     SWR_old = 10000;
     Power_old = 10000;
@@ -1618,24 +1639,40 @@ void btn_push()
     }
 	digitalWrite(GREEN_LED_PIN, HIGH);
 	digitalWrite(RED_LED_PIN, HIGH);
+#ifdef SP2HYO
+	digitalWrite(YELLOW_LED_PIN, HIGH);
+#endif
+
 
     tune();		// strojenie
 
-	// real-time 2-colors led work
+	// real-time 2-colors led work or 3 colors (SP2HYO)
 	if (SWR <= 150)
 	{
 		digitalWrite(GREEN_LED_PIN, LOW);
 		digitalWrite(RED_LED_PIN, HIGH);
+#ifdef SP2HYO
+		digitalWrite(YELLOW_LED_PIN, HIGH);
+#endif
 	} // Green
 	else if (SWR <= 250)
 	{
+#ifdef SP2HYO
+		digitalWrite(YELLOW_LED_PIN, LOW);
+		digitalWrite(GREEN_LED_PIN, HIGH);
+		digitalWrite(RED_LED_PIN, HIGH);
+#else
 		digitalWrite(GREEN_LED_PIN, LOW);
 		digitalWrite(RED_LED_PIN, LOW);
+#endif
 	} // Orange
 	else
 	{
 		digitalWrite(GREEN_LED_PIN, HIGH);
 		digitalWrite(RED_LED_PIN, LOW);
+#ifdef SP2HYO
+		digitalWrite(YELLOW_LED_PIN, HIGH);
+#endif
 	} // Red
     if ((Loss_mode == 0) || (Loss_ind == 0))
         lcd_ind();
@@ -1793,7 +1830,7 @@ void cells_init(void)
     Cap7 = Bcd2Dec(EEPROM.read(44)) * 100 + Bcd2Dec(EEPROM.read(45)); // Cap7
     Cap8 = Bcd2Dec(EEPROM.read(46)) * 100 + Bcd2Dec(EEPROM.read(47)); // Cap8
 
-    Cap1 = 10, Cap2 = 22, Cap3 = 47, Cap4 = 100, Cap5 = 220, Cap6 = 470, Cap7 = 1000, Cap8 = 1820;
+    Cap1 = 10, Cap2 = 22, Cap3 = 44, Cap4 = 94, Cap5 = 200, Cap6 = 440, Cap7 = 940, Cap8 = 1820;
     //
     P_High = EEPROM.read(0x30); // High power
     P_High = 1;
