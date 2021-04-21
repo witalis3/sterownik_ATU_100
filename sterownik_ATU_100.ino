@@ -1136,7 +1136,8 @@ void lcd_prep()
 		delay(700);
 		delay(500);
 		led_wr_str(0, 4, "by N7DDC", 8);
-		led_wr_str(1, 3, "FW ver 3.1a", 11);
+		// "b" - nowe wartości kondensatorów
+		led_wr_str(1, 3, "FW ver 3.1b", 11);
 		delay(600);
 		delay(500);
 		led_wr_str(0, 4, "        ", 8);
