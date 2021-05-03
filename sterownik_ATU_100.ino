@@ -4,10 +4,10 @@
  * sterownik ATU na bazie ATU-100 wg N7DDC na procesor atmega328
  * SP3JDZ
  *
+ * - wersja "c"
+ * 		- zmiana logiki dla TX_REQUEST_PIN1 (zmiana nazwy na BLOKADA_QRO) -> blokada QRO na czas przełączenia przekaźników
  * ToDo
  * - opcja 7x7 lub 7x8 do wyboru
- * - pojawia się dwa razy reset po resecie ;-)
- * - inne błędy...
  *
  */
 #include "Arduino.h"
@@ -78,10 +78,10 @@ void setup()
 	cells_init();
 	pinMode(SW_PIN, OUTPUT);
 	digitalWrite(SW_PIN, SW);
-	pinMode(TX_REQUEST_PIN1, OUTPUT);
-	digitalWrite(TX_REQUEST_PIN1, LOW);		// TX request; stan aktywny wysoki
-	pinMode(TX_REQUEST_PIN2, OUTPUT);
-	digitalWrite(TX_REQUEST_PIN2, LOW);		// TX request; stan aktywny wysoki + opóźnienie
+	pinMode(BLOKADA_QRO, OUTPUT);
+	digitalWrite(BLOKADA_QRO, HIGH);		// blokada QRO; stan aktywny wysoki; na początek blokada QRO
+	pinMode(TX_REQUEST_PIN, OUTPUT);
+	digitalWrite(TX_REQUEST_PIN, LOW);		// TX request; stan aktywny wysoki + opóźnienie
 	pinMode(MANUAL_LED_PIN, OUTPUT);
 	digitalWrite(MANUAL_LED_PIN, LOW);		// 	sygnalizacja trybu ręcznego; stan aktywny wysoki
 	// LEDy jako wyświetlacz:
@@ -150,7 +150,7 @@ void setup()
 		mcp_c.pinMode(var, OUTPUT);
 	}
 /*
- * tryb pracy "Test" = ręczne strojenie skrzynki
+ * tryb pracy "Test" = ręczne strojenie skrzynki (dla = 1)
  *
  */
     if (Test == 0)
@@ -166,6 +166,7 @@ void setup()
         Test_init();
     }
     lcd_ind();
+	digitalWrite(BLOKADA_QRO, LOW);		// odblokowanie QRO
 }
 
 void loop()
@@ -177,7 +178,7 @@ void loop()
     	if (Test == 0)
     	{
     		digitalWrite(MANUAL_LED_PIN, HIGH);
-            digitalWrite(TX_REQUEST_PIN1, HIGH);
+            digitalWrite(BLOKADA_QRO, HIGH);
     		Test = 1;
     		lcd.setCursor(8, 0);
     		lcd.print("l");
@@ -187,7 +188,7 @@ void loop()
     	else if (Test == 1)
     	{
     		digitalWrite(MANUAL_LED_PIN, LOW);
-            digitalWrite(TX_REQUEST_PIN1, LOW);
+            digitalWrite(BLOKADA_QRO, LOW);
     		Test = 0;
     		lcd.setCursor(8, 0);
     		lcd.print(" ");
@@ -1137,7 +1138,7 @@ void lcd_prep()
 		delay(500);
 		led_wr_str(0, 4, "by N7DDC", 8);
 		// "b" - nowe wartości kondensatorów
-		led_wr_str(1, 3, "FW ver 3.1b", 11);
+		led_wr_str(1, 3, "FW ver 3.1c", 11);
 		delay(600);
 		delay(500);
 		led_wr_str(0, 4, "        ", 8);
@@ -1460,12 +1461,12 @@ void button_proc(void)
         }
         else
         { // long press TUNE button
-            digitalWrite(TX_REQUEST_PIN1, HIGH);
+            digitalWrite(BLOKADA_QRO, HIGH);
             delay(250); //
 #ifdef SP2HYO
-            delay(1000);	// dodatkowe opóźnienie dla TX_REQUEST_PIN2
+            delay(1000);	// dodatkowe opóźnienie dla TX_REQUEST_PIN
 #endif
-            digitalWrite(TX_REQUEST_PIN2, HIGH);
+            digitalWrite(TX_REQUEST_PIN, HIGH);
 
             btn_push();		// tutaj rozpoczęcie procedury strojenia
 
@@ -1595,8 +1596,8 @@ void show_reset()
     EEPROM.write(251 - mem_offset * 5, 0);
     lcd_ind();
     Loss_mode = 0;
-    digitalWrite(TX_REQUEST_PIN1, LOW);
-    digitalWrite(TX_REQUEST_PIN2, LOW);
+    digitalWrite(BLOKADA_QRO, LOW);
+    digitalWrite(TX_REQUEST_PIN, LOW);
     SWR = 0;
     PWR = 0;
     SWR_fixed_old = 0;
@@ -1682,8 +1683,8 @@ void btn_push()
     Power_old = 10000;
     lcd_pwr();
     SWR_fixed_old = SWR;
-    digitalWrite(TX_REQUEST_PIN1, LOW);
-    digitalWrite(TX_REQUEST_PIN2, LOW);
+    digitalWrite(BLOKADA_QRO, LOW);
+    digitalWrite(TX_REQUEST_PIN, LOW);
     return;
 }
 void button_proc_test(void)
