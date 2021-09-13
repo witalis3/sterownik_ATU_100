@@ -10,8 +10,9 @@
 #ifndef STEROWNIK_ATU_100_H_
 #define STEROWNIK_ATU_100_H_
 
-#define DEBUG
+//#define DEBUG
 #define SP2HYO
+#define BRAK_LOGO
 
 #define TUNE_BUTTON_PIN		7
 #define AUTO_BUTTON_PIN		5

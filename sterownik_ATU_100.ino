@@ -4,6 +4,8 @@
  * sterownik ATU na bazie ATU-100 wg N7DDC na procesor atmega328
  * SP3JDZ
  *
+ * - wersja "d"
+ * 		- opcja ominięcia długiego startu (brak logo) -> szybki start
  * - wersja "c"
  * 		- zmiana logiki dla TX_REQUEST_PIN1 (zmiana nazwy na BLOKADA_QRO) -> blokada QRO na czas przełączenia przekaźników
  * ToDo
@@ -159,6 +161,9 @@ void setup()
         load_settings();
         if (Restart == 1)
             lcd_prep_short = 1;
+#ifdef BRAK_LOGO
+        lcd_prep_short = 1;
+#endif
         lcd_prep();
     }
     else
@@ -1137,14 +1142,13 @@ void lcd_prep()
 		delay(700);
 		delay(500);
 		led_wr_str(0, 4, "by N7DDC", 8);
-		// "b" - nowe wartości kondensatorów
-		led_wr_str(1, 3, "FW ver 3.1c", 11);
+		led_wr_str(1, 3, "FW ver 3.1d", 11);
 		delay(600);
 		delay(500);
 		led_wr_str(0, 4, "        ", 8);
 		led_wr_str(1, 3, "           ", 11);
+		delay(150);
 	}
-	delay(150);
 	if (P_High == 1)
 		led_wr_str(0, 0, "PWR=  0W", 8);
 	else
