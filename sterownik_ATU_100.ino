@@ -3,12 +3,18 @@
  *      Author: witek
  * sterownik ATU na bazie ATU-100 wg N7DDC na procesor atmega328
  * SP3JDZ
- *
+ * - wersja "f" (tylko dla HYO)
+ * 	- blokada Tune gdy jest aktywny bypass
+ * - wersja "e"
+ * 		- sygnalizacja trybów AUTO i BYPASS na diodach (gdy brak wyświetlacza lub dodatkowo)
  * - wersja "d"
  * 		- opcja ominięcia długiego startu (brak logo) -> szybki start
  * - wersja "c"
  * 		- zmiana logiki dla TX_REQUEST_PIN1 (zmiana nazwy na BLOKADA_QRO) -> blokada QRO na czas przełączenia przekaźników
  * ToDo
+ * - aktywacja TX_REQUEST_PIN na czas strojenia ręcznego (razem z BLOKADA_QRO -> tak jak TUNE)
+ * 		- czy logika tych dwóch jest taka sama (dublowana) -> jest dodatkowe opóźnienie
+ * - przycisk strojenia dokładnego (algorytm K5JCA)
  * - opcja 7x7 lub 7x8 do wyboru
  *
  */
@@ -49,7 +55,6 @@ byte L = 1, but = 0;
 byte ind = 0, cap = 0, SW = 0, step_cap = 0, step_ind = 0, L_linear = 0, C_linear = 0, L_q = 7, C_q = 8, Overload = 0,
 		D_correction = 1, K_Mult, P_High = 1, L_invert = 0, Loss_ind = 0;
 byte L_mult = 4, C_mult = 8;		// ustawione na 7X8
-// Rel_Del opóźnienie przekaźnika (50 HYO)
 int Rel_Del = 50, min_for_start, max_for_start, max_swr = 0;
 byte mem_offset = 0;
 byte offset;
@@ -78,6 +83,12 @@ void setup()
 	Serial.println("setup poczatek");
 #endif
 	cells_init();
+#ifndef DEBUG
+	pinMode(AUTO_SYGNALIZACJA, OUTPUT);		// sygnalizacja trybu AUTO; stan aktywny niski
+	pinMode(BYPASS_SYGNALIZACJA, OUTPUT);	// sygnalizacja trybu BYPASS; stan aktywny niski
+	digitalWrite(AUTO_SYGNALIZACJA, HIGH);	// wstępnie diody wyłączone
+	digitalWrite(BYPASS_SYGNALIZACJA, HIGH);
+#endif
 	pinMode(SW_PIN, OUTPUT);
 	digitalWrite(SW_PIN, SW);
 	pinMode(BLOKADA_QRO, OUTPUT);
@@ -177,6 +188,10 @@ void setup()
 void loop()
 {
     lcd_pwr();
+#ifdef SP2HYO
+    if (bypas == 0)
+    {
+#endif
     manual_button.update();
     if (manual_button.pressed())
     {
@@ -187,6 +202,11 @@ void loop()
     		Test = 1;
     		lcd.setCursor(8, 0);
     		lcd.print("l");
+            delay(250);
+#ifdef SP2HYO
+            delay(1000);	// dodatkowe opóźnienie dla TX_REQUEST_PIN
+#endif
+            digitalWrite(TX_REQUEST_PIN, HIGH);
     		lcd_prep_short = 1;
     		lcd_prep();
     	}
@@ -194,12 +214,16 @@ void loop()
     	{
     		digitalWrite(MANUAL_LED_PIN, LOW);
             digitalWrite(BLOKADA_QRO, LOW);
+            digitalWrite(TX_REQUEST_PIN, LOW);
     		Test = 0;
     		lcd.setCursor(8, 0);
     		lcd.print(" ");
     		tune_zapis();
     	}
     }
+#ifdef SP2HYO
+    }
+#endif
     if (Test == 0)
     {
         button_proc();	// główna procedura
@@ -378,6 +402,7 @@ void get_pwr()
         if (Forward > 999)
             Forward = 999;
     }
+    // odtąd Forward to jest wyliczony lub ustalony SWR!
     //
     p = p * K_Mult / 1000.0; // mV to Volts on Input
     p = p / 1.414;
@@ -395,7 +420,8 @@ void get_pwr()
     Serial.println(PWR);
     }
 #endif
-    if (PWR < 10)
+    // dla HYO: zmiana wartości 10 na 5
+    if (PWR < 5)
         SWR = 1;
     else if (Forward < 100)
         SWR = 999;
@@ -1142,20 +1168,24 @@ void lcd_prep()
 		delay(700);
 		delay(500);
 		led_wr_str(0, 4, "by N7DDC", 8);
-		led_wr_str(1, 3, "FW ver 3.1d", 11);
+		led_wr_str(1, 3, "FW ver 3.1f", 11);
 		delay(600);
 		delay(500);
 		led_wr_str(0, 4, "        ", 8);
 		led_wr_str(1, 3, "           ", 11);
-		delay(150);
 	}
+	delay(150);
 	if (P_High == 1)
 		led_wr_str(0, 0, "PWR=  0W", 8);
 	else
 		led_wr_str(0, 0, "PWR=0.0W", 8);
 	led_wr_str(1, 0, "SWR=0.00", 8);
 	if (Auto)
+	{
 		led_wr_str(0, 8, ".", 1);
+		digitalWrite(AUTO_SYGNALIZACJA, LOW);
+		digitalWrite(AUTO_SYGNALIZACJA, HIGH);
+	}
 	lcd_ind();
 	return;
 }
@@ -1440,6 +1470,11 @@ void Test_init(void)
 }
 void button_proc(void)
 {
+#ifdef SP2HYO
+	// blokada Tune gdy jest bypas
+	if (bypas == 0)
+	{
+#endif
 	tune_button.update();
 #ifdef DEBUG
 	if (tune_button.isPressed())
@@ -1484,6 +1519,9 @@ void button_proc(void)
             Soft_tune = 0;
         }
     }
+#ifdef SP2HYO
+	}
+#endif
     //
     bypass_button.update();
     if (bypass_button.isPressed())
@@ -1531,11 +1569,23 @@ void button_proc(void)
         else if (type != 0)
         { //  1602 LCD  or 128*32 OLED
             if (Auto && !bypas)
+            {
                 led_wr_str(0, 8, ".", 1);
+        		digitalWrite(AUTO_SYGNALIZACJA, LOW);
+        		digitalWrite(BYPASS_SYGNALIZACJA, HIGH);
+            }
             else if (!Auto && bypas)
+            {
                 led_wr_str(0, 8, "_", 1);
+        		digitalWrite(AUTO_SYGNALIZACJA, HIGH);
+        		digitalWrite(BYPASS_SYGNALIZACJA, LOW);
+            }
             else
+            {
                 led_wr_str(0, 8, " ", 1);
+        		digitalWrite(AUTO_SYGNALIZACJA, HIGH);
+        		digitalWrite(BYPASS_SYGNALIZACJA, HIGH);
+            }
         }
         bypass_button.update();
         while (bypass_button.isPressed())
@@ -1546,7 +1596,7 @@ void button_proc(void)
     }
     //
     auto_button.update();
-    if (auto_button.isPressed() & bypas == 0)
+    if (auto_button.isPressed() & (bypas == 0))
     { // Auto button
         dysp_on();
         dysp_cnt = Dysp_delay * dysp_cnt_mult;
@@ -1570,11 +1620,23 @@ void button_proc(void)
         else if (type != 0)
         { //  1602 LCD  or 128*32 OLED
             if (Auto && !bypas)
+            {
                 led_wr_str(0, 8, ".", 1);
+        		digitalWrite(AUTO_SYGNALIZACJA, LOW);
+        		digitalWrite(BYPASS_SYGNALIZACJA, HIGH);
+            }
             else if (!Auto && bypas)
+            {
                 led_wr_str(0, 8, "_", 1);
+        		digitalWrite(AUTO_SYGNALIZACJA, HIGH);
+        		digitalWrite(BYPASS_SYGNALIZACJA, LOW);
+            }
             else
+            {
                 led_wr_str(0, 8, " ", 1);
+        		digitalWrite(AUTO_SYGNALIZACJA, HIGH);
+        		digitalWrite(BYPASS_SYGNALIZACJA, HIGH);
+            }
         }
         auto_button.update();
         while (auto_button.isPressed())
@@ -1698,7 +1760,7 @@ void button_proc_test(void)
     { // Tune btn
         delay(250);
         if (digitalRead(TUNE_BUTTON_PIN) == 1)
-        { // short press button
+        { // short press button -> kondensator przód/tył
             if (SW == 0)
                 SW = 1;
             else
@@ -1707,7 +1769,7 @@ void button_proc_test(void)
             lcd_ind();
         }
         else
-        { // long press button
+        { // long press button -> pojemność/indukcyjność
             if (L == 1)
                 L = 0;
             else
@@ -1789,7 +1851,8 @@ void cells_init(void)
     if (EEPROM.read(2) == 1)
         Auto = 1;
     Rel_Del = Bcd2Dec(EEPROM.read(3)); // Relay's Delay
-    Rel_Del = 30;
+    // czas opóźnienia dla przekaźnika
+    Rel_Del = 50;	// HYO -> 50 testowane
     Auto_delta = Bcd2Dec(EEPROM.read(4)) * 10; // Auto_delta
     Auto_delta = 130;
     min_for_start = Bcd2Dec(EEPROM.read(5)) * 10; // P_min_for_start
