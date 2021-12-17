@@ -1861,6 +1861,9 @@ void cells_init(void)
 #else
     min_for_start = 30;
 #endif
+#ifdef MOC_20W
+    min_for_start = 2;
+#endif
     max_for_start = Bcd2Dec(EEPROM.read(6)) * 10; // P_max_for_start
     max_for_start = 0;
     // 7  - shift down
@@ -1903,12 +1906,18 @@ void cells_init(void)
     //
     P_High = EEPROM.read(0x30); // High power
     P_High = 1;
-    K_Mult = Bcd2Dec(EEPROM.read(0x31)); // Tandem Natch rate
+#ifdef MOC_20W
+    P_High = 0;
+#endif
+    K_Mult = Bcd2Dec(EEPROM.read(0x31)); // Tandem Match rate
 
 #ifdef SP2HYO
     K_Mult = 33;
 #else
     K_Mult = 24;
+#endif
+#ifdef MOC_20W
+    K_Mult = 5;
 #endif
     Dysp_delay = Bcd2Dec(EEPROM.read(0x32)); // Dysplay ON delay
     Dysp_delay = 20;

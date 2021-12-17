@@ -11,8 +11,9 @@
 #define STEROWNIK_ATU_100_H_
 
 //#define DEBUG
-#define SP2HYO
-#define BRAK_LOGO
+//#define SP2HYO
+#define MOC_20W
+//#define BRAK_LOGO
 
 #define BYPASS_SYGNALIZACJA 0	// wyjście sygnalizacji trybu BYPASS na LED aktywny stan niski
 #define AUTO_SYGNALIZACJA	1	// wyjście sygnalizacji trybu AUTO na LED aktywny stan niski
