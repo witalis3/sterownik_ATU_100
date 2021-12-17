@@ -3,6 +3,7 @@
  *      Author: witek
  * sterownik ATU na bazie ATU-100 wg N7DDC na procesor atmega328
  * SP3JDZ
+ * - wersja "g" przystosowanie do pracy z małą mocą rzędu 20W (stała MOC_20W w sterownik_ATU_100.h)
  * - wersja "f" (tylko dla HYO)
  * 	- blokada Tune gdy jest aktywny bypass
  * - wersja "e"
@@ -1168,7 +1169,7 @@ void lcd_prep()
 		delay(700);
 		delay(500);
 		led_wr_str(0, 4, "by N7DDC", 8);
-		led_wr_str(1, 3, "FW ver 3.1f", 11);
+		led_wr_str(1, 3, "FW ver 3.1g", 11);
 		delay(600);
 		delay(500);
 		led_wr_str(0, 4, "        ", 8);
