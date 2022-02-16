@@ -73,7 +73,7 @@ environment/project/io.sloeber.core.toolChain.release.1252948106/A.BUILD.VARIANT
 environment/project/io.sloeber.core.toolChain.release.1252948106/A.BUILD.VARIANT/value=eightanaloginputs
 environment/project/io.sloeber.core.toolChain.release.1252948106/A.COMMUNICATION/delimiter=;
 environment/project/io.sloeber.core.toolChain.release.1252948106/A.COMMUNICATION/operation=replace
-environment/project/io.sloeber.core.toolChain.release.1252948106/A.COMMUNICATION/value=usb
+environment/project/io.sloeber.core.toolChain.release.1252948106/A.COMMUNICATION/value=serial
 environment/project/io.sloeber.core.toolChain.release.1252948106/A.COMPILER.AR.CMD/delimiter=;
 environment/project/io.sloeber.core.toolChain.release.1252948106/A.COMPILER.AR.CMD/operation=replace
 environment/project/io.sloeber.core.toolChain.release.1252948106/A.COMPILER.AR.CMD/value=avr-gcc-ar
@@ -163,7 +163,7 @@ environment/project/io.sloeber.core.toolChain.release.1252948106/A.ESP8266.NETWO
 environment/project/io.sloeber.core.toolChain.release.1252948106/A.ESP8266.NETWORK.UPLOAD.TOOL/value=esp8266OTA
 environment/project/io.sloeber.core.toolChain.release.1252948106/A.NAME/delimiter=;
 environment/project/io.sloeber.core.toolChain.release.1252948106/A.NAME/operation=replace
-environment/project/io.sloeber.core.toolChain.release.1252948106/A.NAME/value=Atmel JTAGICE3 (ISP mode)
+environment/project/io.sloeber.core.toolChain.release.1252948106/A.NAME/value=Atmel STK500 development board
 environment/project/io.sloeber.core.toolChain.release.1252948106/A.PACKAGES/delimiter=;
 environment/project/io.sloeber.core.toolChain.release.1252948106/A.PACKAGES/operation=replace
 environment/project/io.sloeber.core.toolChain.release.1252948106/A.PACKAGES/value=${eclipse_home}/arduinoPlugin/packages
@@ -175,16 +175,16 @@ environment/project/io.sloeber.core.toolChain.release.1252948106/A.PREPROC.MACRO
 environment/project/io.sloeber.core.toolChain.release.1252948106/A.PREPROC.MACROS.FLAGS/value=-w -x c++ -E -CC
 environment/project/io.sloeber.core.toolChain.release.1252948106/A.PROGRAM.EXTRA_PARAMS/delimiter=;
 environment/project/io.sloeber.core.toolChain.release.1252948106/A.PROGRAM.EXTRA_PARAMS/operation=replace
-environment/project/io.sloeber.core.toolChain.release.1252948106/A.PROGRAM.EXTRA_PARAMS/value=
+environment/project/io.sloeber.core.toolChain.release.1252948106/A.PROGRAM.EXTRA_PARAMS/value=-P${A.SERIAL.PORT}
 environment/project/io.sloeber.core.toolChain.release.1252948106/A.PROGRAM.PROTOCOL/delimiter=;
 environment/project/io.sloeber.core.toolChain.release.1252948106/A.PROGRAM.PROTOCOL/operation=replace
-environment/project/io.sloeber.core.toolChain.release.1252948106/A.PROGRAM.PROTOCOL/value=jtag3isp
+environment/project/io.sloeber.core.toolChain.release.1252948106/A.PROGRAM.PROTOCOL/value=stk500
 environment/project/io.sloeber.core.toolChain.release.1252948106/A.PROGRAM.TOOL/delimiter=;
 environment/project/io.sloeber.core.toolChain.release.1252948106/A.PROGRAM.TOOL/operation=replace
 environment/project/io.sloeber.core.toolChain.release.1252948106/A.PROGRAM.TOOL/value=avrdude
 environment/project/io.sloeber.core.toolChain.release.1252948106/A.PROTOCOL/delimiter=;
 environment/project/io.sloeber.core.toolChain.release.1252948106/A.PROTOCOL/operation=replace
-environment/project/io.sloeber.core.toolChain.release.1252948106/A.PROTOCOL/value=jtag3isp
+environment/project/io.sloeber.core.toolChain.release.1252948106/A.PROTOCOL/value=stk500
 environment/project/io.sloeber.core.toolChain.release.1252948106/A.RECIPE.AR.PATTERN.1/delimiter=;
 environment/project/io.sloeber.core.toolChain.release.1252948106/A.RECIPE.AR.PATTERN.1/operation=replace
 environment/project/io.sloeber.core.toolChain.release.1252948106/A.RECIPE.AR.PATTERN.1/value="${A.COMPILER.PATH}${A.COMPILER.AR.CMD}" ${A.COMPILER.AR.FLAGS} ${A.COMPILER.AR.EXTRA_FLAGS} 
@@ -454,7 +454,7 @@ environment/project/io.sloeber.core.toolChain.release.1252948106/JANTJE.BOARD_NA
 environment/project/io.sloeber.core.toolChain.release.1252948106/JANTJE.BOARD_NAME/value=Arduino Nano
 environment/project/io.sloeber.core.toolChain.release.1252948106/JANTJE.COM_PORT/delimiter=;
 environment/project/io.sloeber.core.toolChain.release.1252948106/JANTJE.COM_PORT/operation=replace
-environment/project/io.sloeber.core.toolChain.release.1252948106/JANTJE.COM_PORT/value=COM6
+environment/project/io.sloeber.core.toolChain.release.1252948106/JANTJE.COM_PORT/value=COM9
 environment/project/io.sloeber.core.toolChain.release.1252948106/JANTJE.ECLIPSE_LOCATION/delimiter=;
 environment/project/io.sloeber.core.toolChain.release.1252948106/JANTJE.ECLIPSE_LOCATION/operation=replace
 environment/project/io.sloeber.core.toolChain.release.1252948106/JANTJE.ECLIPSE_LOCATION/value=C\:\\Sloeber\\
@@ -505,7 +505,7 @@ environment/project/io.sloeber.core.toolChain.release.1252948106/JANTJE.SIZE.SWI
 environment/project/io.sloeber.core.toolChain.release.1252948106/JANTJE.SIZE.SWITCH/value=${A.RECIPE.SIZE.PATTERN}
 environment/project/io.sloeber.core.toolChain.release.1252948106/JANTJE.UPLOAD/delimiter=;
 environment/project/io.sloeber.core.toolChain.release.1252948106/JANTJE.UPLOAD/operation=replace
-environment/project/io.sloeber.core.toolChain.release.1252948106/JANTJE.UPLOAD/value=Atmel JTAGICE3 (ISP mode)
+environment/project/io.sloeber.core.toolChain.release.1252948106/JANTJE.UPLOAD/value=Atmel STK500 development board
 environment/project/io.sloeber.core.toolChain.release.1252948106/JANTJE.WARNING_LEVEL/delimiter=;
 environment/project/io.sloeber.core.toolChain.release.1252948106/JANTJE.WARNING_LEVEL/operation=replace
 environment/project/io.sloeber.core.toolChain.release.1252948106/JANTJE.WARNING_LEVEL/value=true

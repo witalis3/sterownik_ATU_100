@@ -56,7 +56,7 @@ byte L = 1, but = 0;
 byte ind = 0, cap = 0, SW = 0, step_cap = 0, step_ind = 0, L_linear = 0, C_linear = 0, L_q = 7, C_q = 8, Overload = 0,
 		D_correction = 1, K_Mult, P_High = 1, L_invert = 0, Loss_ind = 0;
 byte L_mult = 4, C_mult = 8;		// ustawione na 7X8
-int Rel_Del = 50, min_for_start, max_for_start, max_swr = 0;
+int Rel_Del = 30, min_for_start, max_for_start, max_swr = 0;
 byte mem_offset = 0;
 byte offset;
 byte bypas = 0, cap_mem = 0, ind_mem = 0, SW_mem = 0, Auto_mem = 0;
@@ -238,17 +238,20 @@ void loop()
     else if ((Test == 0) && (Dysp_delay != 0))
         dysp_off();
     // memo_code -> obsługa pamięci ustawień dla poszczególnych kodów DCBA
-    offset = mem_offset;
-    read_i2c_inputs();
-    if (offset != mem_offset)
-    {
+	if (bypas == 0)		// jak jest bypas, to nastawy się nie wczytują i nie zmieniają
+	{
+		offset = mem_offset;
+		read_i2c_inputs();
+		if (offset != mem_offset)
+		{
 #ifdef DEBUG
 		Serial.print("mem_offset: ");
 		Serial.println(mem_offset, HEX);
 #endif
-        load_settings();
-        lcd_ind();
-    }
+			load_settings();
+			lcd_ind();
+		}
+	}
     // end memo_code
 }
 
@@ -1853,7 +1856,7 @@ void cells_init(void)
         Auto = 1;
     Rel_Del = Bcd2Dec(EEPROM.read(3)); // Relay's Delay
     // czas opóźnienia dla przekaźnika
-    Rel_Del = 50;	// HYO -> 50 testowane
+    Rel_Del = 30;	// HYO -> 50 testowane
     Auto_delta = Bcd2Dec(EEPROM.read(4)) * 10; // Auto_delta
     Auto_delta = 130;
     min_for_start = Bcd2Dec(EEPROM.read(5)) * 10; // P_min_for_start
