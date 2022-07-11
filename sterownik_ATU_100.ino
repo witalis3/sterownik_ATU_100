@@ -194,12 +194,19 @@ void loop()
     {
 #endif
     manual_button.update();
+    /* Test = 0 tryb automatyczny
+     * Test = 1 tryb ręczny
+     */
     if (manual_button.pressed())
     {
     	if (Test == 0)
     	{
-    		digitalWrite(MANUAL_LED_PIN, HIGH);
+    		digitalWrite(MANUAL_LED_PIN, HIGH);	// tryb ręczny
+#ifdef SP2HYO
+            digitalWrite(BLOKADA_QRO, LOW);		// dla HYO: strojenie w trybie ręcznym bez ograniczania mocy
+#else
             digitalWrite(BLOKADA_QRO, HIGH);
+#endif
     		Test = 1;
     		lcd.setCursor(8, 0);
     		lcd.print("l");
@@ -213,7 +220,7 @@ void loop()
     	}
     	else if (Test == 1)
     	{
-    		digitalWrite(MANUAL_LED_PIN, LOW);
+    		digitalWrite(MANUAL_LED_PIN, LOW);	// tryb automatyczny
             digitalWrite(BLOKADA_QRO, LOW);
             digitalWrite(TX_REQUEST_PIN, LOW);
     		Test = 0;

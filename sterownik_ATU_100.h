@@ -11,7 +11,7 @@
 #define STEROWNIK_ATU_100_H_
 
 //#define DEBUG
-//#define SP2HYO
+#define SP2HYO
 //#define MOC_20W
 //#define BRAK_LOGO
 
