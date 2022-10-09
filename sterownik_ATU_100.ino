@@ -3,6 +3,7 @@
  *      Author: witek
  * sterownik ATU na bazie ATU-100 wg N7DDC na procesor atmega328
  * SP3JDZ
+ * - wersja "h" moja wersja korekcji (funkcja correction) dla BAT41 (stała KOREKCJA_BAT41_10k w sterownik.h)
  * - wersja "g" przystosowanie do pracy z małą mocą rzędu 20W (stała MOC_20W w sterownik_ATU_100.h)
  * - wersja "f" (tylko dla HYO)
  * 	- blokada Tune gdy jest aktywny bypass
@@ -463,6 +464,64 @@ int get_reverse()
 }
 int correction(int input)
 {
+#ifdef KOREKCJA_BAT41_10k
+	if (input <= 80)
+	{
+		return 0;
+	}
+	if (input <= 171)
+	{
+		input += 205;	// 244
+	}
+	else if (input <= 328)
+	{
+		input += 215;	// 254
+	}
+	else if (input <= 582)
+	{
+		input += 226;	// 280
+	}
+	else if (input <= 820)
+	{
+		input += 241;	// 297
+	}
+	else if (input <= 1100)
+	{
+		input += 250;	// 310
+	}
+	else if (input <= 2181)
+	{
+		input += 260;	// 430
+	}
+	else if (input <= 3322)
+	{
+		input += 270;	// 484
+	}
+	else if (input <= 4623)
+	{
+		input += 280;	// 530
+	}
+	else if (input <= 5862)
+	{
+		input += 290;	// 648
+	}
+	else if (input <= 7146)
+	{
+		input += 300;	// 743
+	}
+	else if (input <= 8502)
+	{
+		input += 310;	// 8000
+	}
+	else if (input <= 10500)
+	{
+		input += 320;	// 840
+	}
+	else
+	{
+		input += 330;	// 860
+	}
+#else
     if (input <= 80)
         return 0;
     if (input <= 171)
@@ -491,7 +550,7 @@ int correction(int input)
         input += 840;
     else
         input += 860;
-    //
+#endif
     return input;
 }
 void show_pwr(int Power, int SWR)
@@ -1179,7 +1238,7 @@ void lcd_prep()
 		delay(700);
 		delay(500);
 		led_wr_str(0, 4, "by N7DDC", 8);
-		led_wr_str(1, 3, "FW ver 3.1g", 11);
+		led_wr_str(1, 3, "FW ver 3.1h", 11);
 		delay(600);
 		delay(500);
 		led_wr_str(0, 4, "        ", 8);
