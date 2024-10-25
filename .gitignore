@@ -1,2 +1,7 @@
 /sloeber.ino.cpp
 /Release/
+/build/
+/core/
+/libraries/
+/sterownik_ATU_100.ino.standard.hex
+/sterownik_ATU_100.ino.with_bootloader.standard.hex

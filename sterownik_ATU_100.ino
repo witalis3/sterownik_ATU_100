@@ -3,6 +3,11 @@
  *      Author: witek
  * sterownik ATU na bazie ATU-100 wg N7DDC na procesor atmega328
  * SP3JDZ
+ * - wersja "i"
+ * 		- blokada alarmu od wysokiego SWR w PA -> linia TUNE_OUT_PIN ustawiana na czas strojenia i odczytywana przez sterownik PA
+ *
+ * 		- wybór alternatywnych ustawień (dwa banki: A i B np. dla CW i SSB, początek i koniec pasma);
+ * 		- przełączanie banku przyciskiem BUTTON4 (górny prawy)
  * - wersja "h" moja wersja korekcji (funkcja correction) dla BAT41 (stała KOREKCJA_BAT41_10k w sterownik.h)
  * - wersja "g" przystosowanie do pracy z małą mocą rzędu 20W (stała MOC_20W w sterownik_ATU_100.h)
  * - wersja "f" (tylko dla HYO)
@@ -37,6 +42,7 @@ Bounce2::Button tune_button = Bounce2::Button();
 Bounce2::Button auto_button = Bounce2::Button();
 Bounce2::Button bypass_button = Bounce2::Button();
 Bounce2::Button manual_button = Bounce2::Button();
+Bounce2::Button alter_button = Bounce2::Button();
 
 byte rready = 0, p_cnt = 0, lcd_prep_short = 0, Auto;
 byte type = 1, Soft_tune = 0;	// 1602
@@ -93,10 +99,16 @@ void setup()
 #endif
 	pinMode(SW_PIN, OUTPUT);
 	digitalWrite(SW_PIN, SW);
+#ifdef SP3JDZ
+	pinMode(TUNE_OUT_PIN, OUTPUT);
+	digitalWrite(TUNE_OUT_PIN, HIGH);	// stan aktywny niski
+#endif
+#ifdef SP2HYO
 	pinMode(BLOKADA_QRO, OUTPUT);
 	digitalWrite(BLOKADA_QRO, HIGH);		// blokada QRO; stan aktywny wysoki; na początek blokada QRO
 	pinMode(TX_REQUEST_PIN, OUTPUT);
 	digitalWrite(TX_REQUEST_PIN, LOW);		// TX request; stan aktywny wysoki + opóźnienie
+#endif
 	pinMode(MANUAL_LED_PIN, OUTPUT);
 	digitalWrite(MANUAL_LED_PIN, LOW);		// 	sygnalizacja trybu ręcznego; stan aktywny wysoki
 	// LEDy jako wyświetlacz:
@@ -124,6 +136,9 @@ void setup()
 	manual_button.attach(MANUAL_BUTTON_PIN, INPUT_PULLUP);
 	manual_button.setPressedState(LOW);
 	manual_button.interval(50);
+	alter_button.attach(ALTER_BUTTON, INPUT_PULLUP);
+	alter_button.setPressedState(LOW);
+	alter_button.interval(50);
 
 	dysp_cnt = Dysp_delay * dysp_cnt_mult;
     //
@@ -168,7 +183,7 @@ void setup()
  * tryb pracy "Test" = ręczne strojenie skrzynki (dla = 1)
  *
  */
-    if (Test == 0)
+    if (Test == 0)	// praca automatyczna
     {
         read_i2c_inputs();
         load_settings();
@@ -184,7 +199,9 @@ void setup()
         Test_init();
     }
     lcd_ind();
+#ifdef SP2HYO
 	digitalWrite(BLOKADA_QRO, LOW);		// odblokowanie QRO
+#endif
 }
 
 void loop()
@@ -203,10 +220,13 @@ void loop()
     	if (Test == 0)
     	{
     		digitalWrite(MANUAL_LED_PIN, HIGH);	// tryb ręczny
+#ifdef SP3JDZ
+    	digitalWrite(TUNE_OUT_PIN, LOW);	// blokada alarmu od SWR
+#endif
 #ifdef SP2HYO
             digitalWrite(BLOKADA_QRO, LOW);		// dla HYO: strojenie w trybie ręcznym bez ograniczania mocy
 #else
-            digitalWrite(BLOKADA_QRO, HIGH);
+            //digitalWrite(BLOKADA_QRO, HIGH); ??
 #endif
     		Test = 1;
     		lcd.setCursor(8, 0);
@@ -214,16 +234,21 @@ void loop()
             delay(250);
 #ifdef SP2HYO
             delay(1000);	// dodatkowe opóźnienie dla TX_REQUEST_PIN
-#endif
             digitalWrite(TX_REQUEST_PIN, HIGH);
+#endif
     		lcd_prep_short = 1;
     		lcd_prep();
     	}
     	else if (Test == 1)
     	{
     		digitalWrite(MANUAL_LED_PIN, LOW);	// tryb automatyczny
+#ifdef SP3JDZ
+    	digitalWrite(TUNE_OUT_PIN, HIGH);	// odblokowanie alarmu od SWR
+#endif
+#ifdef SP2HYO
             digitalWrite(BLOKADA_QRO, LOW);
             digitalWrite(TX_REQUEST_PIN, LOW);
+#endif
     		Test = 0;
     		lcd.setCursor(8, 0);
     		lcd.print(" ");
@@ -1238,7 +1263,7 @@ void lcd_prep()
 		delay(700);
 		delay(500);
 		led_wr_str(0, 4, "by N7DDC", 8);
-		led_wr_str(1, 3, "FW ver 3.1h", 11);
+		led_wr_str(1, 3, "FW ver 3.1i", 11);
 		delay(600);
 		delay(500);
 		led_wr_str(0, 4, "        ", 8);
@@ -1570,12 +1595,18 @@ void button_proc(void)
         }
         else
         { // long press TUNE button
+
+#ifdef SP3JDZ
+    	digitalWrite(TUNE_OUT_PIN, LOW);	// blokada alarmu od SWR
+#endif
+#ifdef SP2HYO
             digitalWrite(BLOKADA_QRO, HIGH);
+#endif
             delay(250); //
 #ifdef SP2HYO
             delay(1000);	// dodatkowe opóźnienie dla TX_REQUEST_PIN
-#endif
             digitalWrite(TX_REQUEST_PIN, HIGH);
+#endif
 
             btn_push();		// tutaj rozpoczęcie procedury strojenia
 
@@ -1732,8 +1763,13 @@ void show_reset()
     EEPROM.write(251 - mem_offset * 5, 0);
     lcd_ind();
     Loss_mode = 0;
+#ifdef SP3JDZ
+    	digitalWrite(TUNE_OUT_PIN, HIGH);	// odblokowanie alarmu od SWR
+#endif
+#ifdef SP2HYO
     digitalWrite(BLOKADA_QRO, LOW);
     digitalWrite(TX_REQUEST_PIN, LOW);
+#endif
     SWR = 0;
     PWR = 0;
     SWR_fixed_old = 0;
@@ -1819,8 +1855,10 @@ void btn_push()
     Power_old = 10000;
     lcd_pwr();
     SWR_fixed_old = SWR;
+#ifdef SP2HYO
     digitalWrite(BLOKADA_QRO, LOW);
     digitalWrite(TX_REQUEST_PIN, LOW);
+#endif
     return;
 }
 void button_proc_test(void)

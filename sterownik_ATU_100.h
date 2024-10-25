@@ -12,6 +12,7 @@
 
 //#define DEBUG
 #define KOREKCJA_BAT41_10k
+//#define SP3JDZ
 //#define SP2HYO
 //#define MOC_20W
 //#define BRAK_LOGO
@@ -22,11 +23,19 @@
 #define AUTO_BUTTON_PIN		5
 #define BYPASS_BUTTON_PIN	6
 #define MANUAL_BUTTON_PIN	A0	// BUTTON6
+#define ALTER_BUTTON		A3	// BUTTON4
 #define FWD_PIN				A7
 #define REF_PIN				A6
 #define SW_PIN				A1	// przełączanie kondensatorów przód tył IN/OUT
-#define BLOKADA_QRO			11	// blokada QRO na czas strojenia skrzynki
+#ifdef SP2HYO
+#define BLOKADA_QRO			11	// blokada QRO na czas strojenia skrzynki; na schemacie sygnał TX_REQ
+#endif
+#ifdef SP3JDZ
+#define TUNE_OUT_PIN		11	// linia blokująca w PA alarm od wysokiego SWR na czas strojenia skrzynki; stan aktywny niski blokuje alarm
+#endif
+#ifdef SP2HYO
 #define TX_REQUEST_PIN		A2	// żądanie nadawania dla TRX u HYO
+#endif
 #define YELLOW_LED_PIN		12	// SWR od 1,5 do 3
 #define GREEN_LED_PIN		9	// SWR poniżej 1,5
 #define RED_LED_PIN			10	// SWR powyżej 3

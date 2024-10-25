@@ -44,17 +44,17 @@
 		<link>
 			<name>libraries/Adafruit_BusIO</name>
 			<type>2</type>
-			<location>C:/Users/48515/Documents/Arduino/libraries/Adafruit_BusIO</location>
+			<location>C:/Users/witol/Documents/Arduino/libraries/Adafruit_BusIO</location>
 		</link>
 		<link>
 			<name>libraries/Adafruit_MCP23008_library</name>
 			<type>2</type>
-			<location>C:/Users/48515/Documents/Arduino/libraries/Adafruit_MCP23008_library</location>
+			<location>C:/Users/witol/Documents/Arduino/libraries/Adafruit_MCP23008_library</location>
 		</link>
 		<link>
 			<name>libraries/Bounce2</name>
 			<type>2</type>
-			<location>C:/Users/48515/Documents/Arduino/libraries/Bounce2</location>
+			<location>C:/Users/witol/Documents/Arduino/libraries/Bounce2</location>
 		</link>
 		<link>
 			<name>libraries/EEPROM</name>
@@ -64,7 +64,7 @@
 		<link>
 			<name>libraries/LiquidCrystal_I2C</name>
 			<type>2</type>
-			<location>C:/Users/48515/Documents/Arduino/libraries/LiquidCrystal_I2C</location>
+			<location>C:/Users/witol/Documents/Arduino/libraries/LiquidCrystal_I2C</location>
 		</link>
 		<link>
 			<name>libraries/SPI</name>
