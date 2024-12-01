@@ -12,7 +12,7 @@
 
 //#define DEBUG
 #define KOREKCJA_BAT41_10k
-//#define SP3JDZ
+#define SP3JDZ
 //#define SP2HYO
 //#define MOC_20W
 //#define BRAK_LOGO
@@ -31,7 +31,7 @@
 #define BLOKADA_QRO			11	// blokada QRO na czas strojenia skrzynki; na schemacie sygnał TX_REQ
 #endif
 #ifdef SP3JDZ
-#define TUNE_OUT_PIN		11	// linia blokująca w PA alarm od wysokiego SWR na czas strojenia skrzynki; stan aktywny niski blokuje alarm
+#define TUNE_REQ_PIN		11	// linia blokująca w PA alarm od wysokiego SWR na czas strojenia skrzynki; stan aktywny niski blokuje alarm
 #endif
 #ifdef SP2HYO
 #define TX_REQUEST_PIN		A2	// żądanie nadawania dla TRX u HYO

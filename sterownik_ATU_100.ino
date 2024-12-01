@@ -4,7 +4,7 @@
  * sterownik ATU na bazie ATU-100 wg N7DDC na procesor atmega328
  * SP3JDZ
  * - wersja "i"
- * 		- blokada alarmu od wysokiego SWR w PA -> linia TUNE_OUT_PIN ustawiana na czas strojenia i odczytywana przez sterownik PA
+ * 		- blokada alarmu od wysokiego SWR w PA -> linia TUNE_REQ_PIN ustawiana na czas strojenia i odczytywana przez sterownik PA
  *
  * 		- wybór alternatywnych ustawień (dwa banki: A i B np. dla CW i SSB, początek i koniec pasma);
  * 		- przełączanie banku przyciskiem BUTTON4 (górny prawy)
@@ -100,8 +100,8 @@ void setup()
 	pinMode(SW_PIN, OUTPUT);
 	digitalWrite(SW_PIN, SW);
 #ifdef SP3JDZ
-	pinMode(TUNE_OUT_PIN, OUTPUT);
-	digitalWrite(TUNE_OUT_PIN, HIGH);	// stan aktywny niski
+	pinMode(TUNE_REQ_PIN, OUTPUT);
+	digitalWrite(TUNE_REQ_PIN, HIGH);	// stan aktywny niski
 #endif
 #ifdef SP2HYO
 	pinMode(BLOKADA_QRO, OUTPUT);
@@ -221,7 +221,7 @@ void loop()
     	{
     		digitalWrite(MANUAL_LED_PIN, HIGH);	// tryb ręczny
 #ifdef SP3JDZ
-    	digitalWrite(TUNE_OUT_PIN, LOW);	// blokada alarmu od SWR
+    	digitalWrite(TUNE_REQ_PIN, LOW);	// blokada alarmu od SWR
 #endif
 #ifdef SP2HYO
             digitalWrite(BLOKADA_QRO, LOW);		// dla HYO: strojenie w trybie ręcznym bez ograniczania mocy
@@ -243,7 +243,7 @@ void loop()
     	{
     		digitalWrite(MANUAL_LED_PIN, LOW);	// tryb automatyczny
 #ifdef SP3JDZ
-    	digitalWrite(TUNE_OUT_PIN, HIGH);	// odblokowanie alarmu od SWR
+    	digitalWrite(TUNE_REQ_PIN, HIGH);	// odblokowanie alarmu od SWR
 #endif
 #ifdef SP2HYO
             digitalWrite(BLOKADA_QRO, LOW);
@@ -1597,7 +1597,7 @@ void button_proc(void)
         { // long press TUNE button
 
 #ifdef SP3JDZ
-    	digitalWrite(TUNE_OUT_PIN, LOW);	// blokada alarmu od SWR
+    	digitalWrite(TUNE_REQ_PIN, LOW);	// blokada alarmu od SWR
 #endif
 #ifdef SP2HYO
             digitalWrite(BLOKADA_QRO, HIGH);
@@ -1764,7 +1764,7 @@ void show_reset()
     lcd_ind();
     Loss_mode = 0;
 #ifdef SP3JDZ
-    	digitalWrite(TUNE_OUT_PIN, HIGH);	// odblokowanie alarmu od SWR
+    	digitalWrite(TUNE_REQ_PIN, HIGH);	// odblokowanie alarmu od SWR
 #endif
 #ifdef SP2HYO
     digitalWrite(BLOKADA_QRO, LOW);
