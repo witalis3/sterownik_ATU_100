@@ -264,7 +264,7 @@ void loop()
     }
     else
     {
-        button_proc_test();
+        button_proc_test();	// tryb ręczny
     }
 	if (dysp_cnt != 0)
         dysp_cnt--;
