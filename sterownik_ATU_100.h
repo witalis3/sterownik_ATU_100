@@ -10,7 +10,8 @@
 #ifndef STEROWNIK_ATU_100_H_
 #define STEROWNIK_ATU_100_H_
 
-//#define DEBUG
+#define BEZ_999
+#define DEBUG
 #define KOREKCJA_BAT41_10k
 #define SP3JDZ
 //#define SP2HYO

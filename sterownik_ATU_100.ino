@@ -3,6 +3,10 @@
  *      Author: witek
  * sterownik ATU na bazie ATU-100 wg N7DDC na procesor atmega328
  * SP3JDZ
+ * - wersja "j"
+ * 		- SWRE powyżej 10
+ * 		- włączenie L = 8
+ * 		- inne zmiany
  * - wersja "i"
  * 		- blokada alarmu od wysokiego SWR w PA -> linia TUNE_REQ_PIN ustawiana na czas strojenia i odczytywana przez sterownik PA
  *
@@ -154,6 +158,8 @@ void setup()
         L_mult = 2;
     else if (L_q == 7)
         L_mult = 4;
+    else if (L_q == 8)
+        L_mult = 8;
     if (C_q == 5)
         C_mult = 1;
     else if (C_q == 6)
@@ -242,6 +248,7 @@ void loop()
     	else if (Test == 1)
     	{
     		digitalWrite(MANUAL_LED_PIN, LOW);	// tryb automatyczny
+    		L = 1;	// przywrócenie domyślnej wartości
 #ifdef SP3JDZ
     	digitalWrite(TUNE_REQ_PIN, HIGH);	// odblokowanie alarmu od SWR
 #endif
@@ -290,12 +297,15 @@ void loop()
 
 void tune()
 {
+#ifdef DEBUG
+    Serial.println("tune:begin ");
+#endif
     p_cnt = 0;
     P_max = 0;
     //
     rready = 0;
 #ifdef DEBUG
-    Serial.print("tune:");
+    Serial.println("tune:");
 #endif
     get_swr();
     if (SWR < 110)
@@ -342,7 +352,10 @@ void tune()
         set_multis();	// ustawienie mult do pierwotnej wartości
     }
     // ToDo po co to? -> powrót do pierwotnych wartości?
-    return;
+#ifdef DEBUG
+    Serial.println("tune:end ");
+#endif
+   return;
 }
 void get_swr()
 {
@@ -361,7 +374,6 @@ void get_swr()
     }
     while ((PWR < min_for_start) || ((PWR > max_for_start) && (max_for_start > 0)))
     { // waiting for good power
-
         get_pwr();
         if (p_cnt != 100)
         {
@@ -393,6 +405,7 @@ void atu_reset()
     cap = 0;
     set_ind(ind);
     set_cap(cap);
+    L = 1; // reset pozostałości z trybu ręcznego
 #ifdef DEBUG
     Serial.print("atu_reset:SW:");
     Serial.print(SW);
@@ -400,6 +413,9 @@ void atu_reset()
 #endif
     delay(Rel_Del);
 }
+/*
+ * pomiar mocy i SWR
+ */
 void get_pwr()
 {
     long Forward, Reverse;
@@ -407,7 +423,7 @@ void get_pwr()
     //
     Forward = get_forward();
     Reverse = get_reverse();
-#ifdef DEBUGi
+#ifdef DEBUG
     if (Forward > 0)
     {
     Serial.print("Forward: ");
@@ -431,15 +447,23 @@ void get_pwr()
     }
 #endif
 
+    // tu Forward się przeobraża!
     if (Reverse >= Forward)
+#ifdef BEZ_999
+    	Reverse = Forward -1;
+#else
         Forward = 999;
+#endif
     else
     {
         Forward = ((Forward + Reverse) * 100) / (Forward - Reverse);
+#ifndef BEZ_999
         if (Forward > 999)
             Forward = 999;
+#endif
     }
     // odtąd Forward to jest wyliczony lub ustalony SWR!
+    // max dla Forward = 999 czyli SWR 9.99
     //
     p = p * K_Mult / 1000.0; // mV to Volts on Input
     p = p / 1.414;
@@ -465,7 +489,7 @@ void get_pwr()
     else
         SWR = Forward;
 #ifdef DEBUG
-    if (PWR > 50)
+    if (PWR > 10)
     {
         Serial.print("SWR: ");
         Serial.println(SWR);
@@ -904,6 +928,9 @@ void lcd_ind()
 }
 void sub_tune()
 {
+#ifdef DEBUG
+    Serial.println("sub_tune:begin ");
+#endif
     int swr_mem, ind_mem, cap_mem;
     //
     swr_mem = SWR;
@@ -1000,10 +1027,16 @@ void sub_tune()
         set_cap(cap);
         SWR = swr_mem;
     }
+#ifdef DEBUG
+    Serial.println("sub_tune:end ");
+#endif
     return;
 }
 void coarse_tune()
 {
+#ifdef DEBUG
+    Serial.println("coarse_tune:begin ");
+#endif
     byte step = 3;
     byte count;
     byte mem_cap, mem_step_cap;
@@ -1064,10 +1097,16 @@ void coarse_tune()
     set_cap(cap);
     step_cap = mem_step_cap;
     delay(10);
-    return;
+#ifdef DEBUG
+    Serial.println("coarse_tune:end ");
+#endif
+   return;
 }
 void sharp_ind()
 {
+#ifdef DEBUG
+    Serial.println("sharp_ind:begin ");
+#endif
     byte range, count, max_range, min_range;
     int min_SWR;
     range = step_ind * L_mult;
@@ -1075,6 +1114,10 @@ void sharp_ind()
     max_range = ind + range;
     if (max_range > 32 * L_mult - 1)
         max_range = 32 * L_mult - 1;
+#ifdef DEBUG
+    	Serial.print("max_range:");
+    	Serial.println(max_range, DEC);
+#endif
     if (ind > range)
         min_range = ind - range;
     else
@@ -1123,10 +1166,16 @@ void sharp_ind()
             break;
     }
     set_ind(ind);
+#ifdef DEBUG
+    Serial.println("sharp_ind:end ");
+#endif
     return;
 }
 void sharp_cap()
 {
+#ifdef DEBUG
+    Serial.println("sharp_cap:begin ");
+#endif
     byte range, count, max_range, min_range;
     int min_SWR;
     range = step_cap * C_mult;
@@ -1148,7 +1197,8 @@ void sharp_cap()
     Serial.print("sharp_cap:min_swr: ");
     Serial.println(min_SWR);
 #endif
-    for (count = min_range + C_mult; count <= max_range; count += C_mult) {
+    for (count = min_range + C_mult; count <= max_range; count += C_mult)
+    {
 #ifdef DEBUG
     Serial.print("sharp_cap:count: ");
     Serial.println(count, HEX);
@@ -1157,15 +1207,18 @@ void sharp_cap()
         get_swr();
         if (SWR == 0)
             return;
-        if (SWR >= min_SWR) {
+        if (SWR >= min_SWR)
+        {
             delay(10);
             get_swr();
         }
-        if (SWR >= min_SWR) {
+        if (SWR >= min_SWR)
+        {
             delay(10);
             get_swr();
         }
-        if (SWR < min_SWR) {
+        if (SWR < min_SWR)
+        {
 #ifdef DEBUG
     Serial.print("sharp_cap:min_swr: ");
     Serial.println(min_SWR);
@@ -1174,10 +1227,15 @@ void sharp_cap()
             cap = count;
             if (SWR < 120)
                 break;
-        } else
+        }
+        else
             break;
     }
     set_cap(cap);
+#ifdef DEBUG
+    Serial.println("sharp_cap:end ");
+#endif
+
     return;
 }
 void set_sw(byte SW)
@@ -1191,6 +1249,9 @@ void set_sw(byte SW)
 }
 void coarse_cap()
 {
+#ifdef DEBUG
+    Serial.println("coarse_cap:begin ");
+#endif
     byte step = 3;
     byte count;
     int min_swr;
@@ -1248,11 +1309,14 @@ void coarse_cap()
             break;
     }
 #ifdef DEBUG
-    	Serial.print("coarse_cap:set_cap:");
+    	Serial.println("coarse_cap:set_cap:");
 #endif
     //set_cap(cap);
     	set_cap(coarse_cap);
-    return;
+#ifdef DEBUG
+    Serial.println("coarse_cap:end ");
+#endif
+   return;
 }
 void lcd_prep()
 {
@@ -1263,7 +1327,7 @@ void lcd_prep()
 		delay(700);
 		delay(500);
 		led_wr_str(0, 4, "by N7DDC", 8);
-		led_wr_str(1, 3, "FW ver 3.1i", 11);
+		led_wr_str(1, 3, "FW ver 3.1j", 11);
 		delay(600);
 		delay(500);
 		led_wr_str(0, 4, "        ", 8);
@@ -1418,7 +1482,7 @@ void lcd_swr(int swr)
             if ((type == 4) || (type == 5))
                 led_wr_str(2, 16 + 4 * 12, "0.00", 4); // 128*64 OLED
             else if (type != 0)
-                led_wr_str(1, 4, "0.00", 4); // 1602  & 128*32 OLED
+                led_wr_str(1, 4, "0.00 ", 5); // 1602  & 128*32 OLED
              // real-time 2-colors led work or 3 colors (SP2HYO)
             	digitalWrite(GREEN_LED_PIN, HIGH);
             	digitalWrite(RED_LED_PIN, HIGH);
@@ -1442,10 +1506,22 @@ void lcd_swr(int swr)
     			Serial.println('_');
     		}
 #endif
-            work_str_2[0] = work_str[0];
-            work_str_2[1] = '.';
-            work_str_2[2] = work_str[1];
-            work_str_2[3] = work_str[2];
+    		if (swr < 1000)
+    		{
+                work_str_2[0] = work_str[0];
+                work_str_2[1] = '.';
+                work_str_2[2] = work_str[1];
+                work_str_2[3] = work_str[2];
+                work_str_2[4] = ' ';
+    		}
+    		else
+    		{
+                work_str_2[0] = work_str[0];
+                work_str_2[1] = work_str[1];
+                work_str_2[2] = '.';
+                work_str_2[3] = work_str[2];
+                work_str_2[4] = work_str[3];
+    		}
 			if ((type == 4) || (type == 5))
 				led_wr_str(2, 16 + 4 * 12, work_str_2, 4); // 128*64 OLED
 			else if (type != 0)
@@ -1817,7 +1893,9 @@ void btn_push()
 	digitalWrite(YELLOW_LED_PIN, HIGH);
 #endif
 
-
+/*
+ * procedura strojenia
+ */
     tune();		// strojenie
 
 	// real-time 2-colors led work or 3 colors (SP2HYO)
@@ -1861,6 +1939,9 @@ void btn_push()
 #endif
     return;
 }
+/*
+ * tryb ręczny
+ */
 void button_proc_test(void)
 {
 	tune_button.update();
@@ -1868,7 +1949,8 @@ void button_proc_test(void)
     { // Tune btn
         delay(250);
         if (digitalRead(TUNE_BUTTON_PIN) == 1)
-        { // short press button -> kondensator przód/tył
+        {
+        	// short press TUNE button -> kondensator przód/tył
             if (SW == 0)
                 SW = 1;
             else
@@ -1877,7 +1959,7 @@ void button_proc_test(void)
             lcd_ind();
         }
         else
-        { // long press button -> pojemność/indukcyjność
+        { // long press TUNE button -> pojemność/indukcyjność
             if (L == 1)
                 L = 0;
             else
@@ -1910,6 +1992,14 @@ void button_proc_test(void)
     { // BYP button
         while (digitalRead(BYPASS_BUTTON_PIN) == 0)
         {
+#ifdef DEBUG
+        	Serial.print("ind:");
+        	Serial.print(ind, HEX);
+        	Serial.print(':');
+        	Serial.println(get_indu_nH(ind));
+        	Serial.print("L_mult(DEC):");
+        	Serial.println(L_mult, DEC);
+#endif
             if (L && ind < (32 * L_mult - 1))
             {
                 ind++;
@@ -1979,7 +2069,8 @@ void cells_init(void)
     max_swr = Bcd2Dec(EEPROM.read(9)) * 10; // Max SWR
     max_swr = 0;
     L_q = EEPROM.read(10);
-    L_q = 7;
+    // 8 cewek ;-)
+    L_q = 8;
     L_linear = EEPROM.read(11);
     L_linear = 0;
     C_q = EEPROM.read(12);
@@ -2058,6 +2149,8 @@ void set_multis()
         L_mult = 2;
     else if (L_q == 7)
         L_mult = 4;
+    else if (L_q == 8)
+    	L_mult = 8;
     if (C_q == 5)
         C_mult = 1;
     else if (C_q == 6)
