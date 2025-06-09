@@ -1,2 +1,4 @@
 # sterownik_ATU_100
 Wersja oprogramowania ATU-100 wg N7DDC na procesor atmega328. W stosunku do oryginału została dołożona funkcjonalność zapisywania ustawień (skorzystałem z kodu i pomysłu SP4MK - pamiętane są wartości pojemności, indukcyjności i miejsca podłączenia kondensatorów) w pamięci EEPROM (16 lokacji adresowych uzależnionych od kodu podanego na 4 linie sygnałowe) oraz obsługa ósmego kondensatora (C8). Wprowadziłem także drobne korekty algorytmu strojenia.
+
+ATU-100 software version by N7DDC for atmega328 processor. Compared to the original, the functionality of saving settings (I used the SP4MK code and idea - the values ​​of capacitance, inductance and capacitor connection locations are remembered) in EEPROM memory (16 address locations dependent on the code given to 4 signal lines) and support for the eighth capacitor (C8) have been added. I have also introduced minor corrections to the tuning algorithm.
