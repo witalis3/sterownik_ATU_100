@@ -10,6 +10,7 @@
 #ifndef STEROWNIK_ATU_100_H_
 #define STEROWNIK_ATU_100_H_
 
+#define CZAS_PETLI
 #define BEZ_999
 #define DEBUG
 #define KOREKCJA_BAT41_10k
@@ -86,5 +87,8 @@ void cells_init(void);
 uint8_t Bcd2Dec(uint8_t n);
 void tune_zapis();
 void set_multis();
+
+// DG
+void timer1ms(void);
 
 #endif /* STEROWNIK_ATU_100_H_ */

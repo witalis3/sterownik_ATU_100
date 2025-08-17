@@ -3,6 +3,8 @@
  *      Author: witek
  * sterownik ATU na bazie ATU-100 wg N7DDC na procesor atmega328
  * SP3JDZ
+ * - NEW_ALGO
+ * 		- próba implementacji algorytmu K6JCA
  * - wersja "j"
  * 		- SWRE powyżej 10
  * 		- włączenie L = 8
@@ -29,8 +31,18 @@
  * - opcja 7x7 lub 7x8 do wyboru
  *
  */
+
+// DG
+#include "defines.h"
+global_t global;
+static volatile uint8_t tick_count = 0;
+uint8_t tick_count_Copy;
+// end DG
+
 #include "Arduino.h"
+#include <stdint.h>
 #include "sterownik_ATU_100.h"
+#include <TimerOne.h>
 #include <EEPROM.h>
 
 
@@ -46,7 +58,6 @@ Bounce2::Button tune_button = Bounce2::Button();
 Bounce2::Button auto_button = Bounce2::Button();
 Bounce2::Button bypass_button = Bounce2::Button();
 Bounce2::Button manual_button = Bounce2::Button();
-Bounce2::Button alter_button = Bounce2::Button();
 
 byte rready = 0, p_cnt = 0, lcd_prep_short = 0, Auto;
 byte type = 1, Soft_tune = 0;	// 1602
@@ -90,6 +101,19 @@ union swaper
 
 void setup()
 {
+	// DG
+	// ToDo uruchomić Timer1? 1kHz na przerwaniach
+	  static uint8_t tick_old=0;
+	  static uint8_t tick_10ms =0;
+	  global.ind_relays =0;
+	  global.cap_relays =0;
+	  global.cap_sw =0;
+	  global.tune_stop_swr = 100; // SWR 1.10
+	  Timer1.initialize(1000);	// 1ms
+	  Timer1.attachInterrupt(timer1ms);
+	  // ToDo odczyt z EEPROM ustawień
+	// end DG
+
 #ifdef DEBUG
 	Serial.begin(115200);
 	Serial.println("setup poczatek");
@@ -140,9 +164,6 @@ void setup()
 	manual_button.attach(MANUAL_BUTTON_PIN, INPUT_PULLUP);
 	manual_button.setPressedState(LOW);
 	manual_button.interval(50);
-	alter_button.attach(ALTER_BUTTON, INPUT_PULLUP);
-	alter_button.setPressedState(LOW);
-	alter_button.interval(50);
 
 	dysp_cnt = Dysp_delay * dysp_cnt_mult;
     //
@@ -212,7 +233,11 @@ void setup()
 
 void loop()
 {
-    lcd_pwr();
+	// DG
+	  static uint8_t tick_old=0;
+	  static uint8_t tick_10ms =0;
+	  // DSG end
+   // lcd_pwr();
 #ifdef SP2HYO
     if (bypas == 0)
     {
@@ -265,9 +290,47 @@ void loop()
 #ifdef SP2HYO
     }
 #endif
+
+    // DG
+
+    // ToDo Czy wyłączać przerwania na czas odczytu tick_count?; wzięte z examples Timer1 Interrupt.ino
+
+    // to read a variable which the interrupt code writes, we
+    // must temporarily disable interrupts, to be sure it will
+    // not change while we are reading.  To minimize the time
+    // with interrupts off, just quickly make a copy, and then
+    // use the copy while allowing the interrupt to keep working.
+noInterrupts();
+tick_count_Copy = tick_count;
+ interrupts();
+
+	if (tick_old != tick_count_Copy)
+	{
+		tick_old++;
+		tick_10ms++;
+		//1ms
+		ADC_Run();	// ToDo tu jest liczona średnia -> 10 razy co 1ms -> po co? -> może liczyć średnią dopiero po 10ms?; po co te bufory?
+
+#ifdef DEBUG_UART
+      UART_Run();
+#endif
+	}
+	//10x 1ms = 10ms
+	if (tick_10ms == 10)
+	{
+		tick_10ms = 0;
+		//10ms
+
+		BUTTON_Run();
+		//MENU_Run();
+
+		//CLRWDT();
+	}
+      // DG end
+
     if (Test == 0)
     {
-        button_proc();	// główna procedura
+       // button_proc();	// główna procedura
     }
     else
     {
@@ -293,7 +356,11 @@ void loop()
 		}
 	}
     // end memo_code
-}
+#ifdef CZAS_PETLI
+	PORTC ^= (1<<PC3);		// nr portu na sztywno! = A3 -> PC3 (button4)
+#endif
+
+}	// loop end
 
 void tune()
 {
@@ -485,7 +552,7 @@ void get_pwr()
     if (PWR < 5)
         SWR = 1;
     else if (Forward < 100)
-        SWR = 999;
+        SWR = 9999;
     else
         SWR = Forward;
 #ifdef DEBUG
@@ -2090,7 +2157,7 @@ void cells_init(void)
     Ind6 = Bcd2Dec(EEPROM.read(26)) * 100 + Bcd2Dec(EEPROM.read(27)); // Ind6
     Ind7 = Bcd2Dec(EEPROM.read(28)) * 100 + Bcd2Dec(EEPROM.read(29)); // Ind7
     //
-    Ind1 = 50, Ind2 = 100, Ind3 = 220, Ind4 = 450, Ind5 = 1000, Ind6 = 2200, Ind7 = 4400;
+    Ind1 = 50, Ind2 = 100, Ind3 = 220, Ind4 = 450, Ind5 = 1000, Ind6 = 2200, Ind7 = 4400, Ind8 = 8800;
 
     Cap1 = Bcd2Dec(EEPROM.read(32)) * 100 + Bcd2Dec(EEPROM.read(33)); // Cap1
     Cap2 = Bcd2Dec(EEPROM.read(34)) * 100 + Bcd2Dec(EEPROM.read(35)); // Cap2
@@ -2159,4 +2226,8 @@ void set_multis()
         C_mult = 4;
     else if (C_q == 8)		// 8 kondensatorów
     	C_mult = 8;
+}
+void timer1ms(void)
+{
+    tick_count++;
 }

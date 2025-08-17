@@ -29,6 +29,8 @@
 									<listOptionValue builtIn="false" value="&quot;${workspace_loc:/sterownik_ATU_100/libraries/Wire/src}&quot;"/>
 									<listOptionValue builtIn="false" value="&quot;${workspace_loc:/sterownik_ATU_100/libraries/Adafruit_BusIO}&quot;"/>
 									<listOptionValue builtIn="false" value="&quot;${workspace_loc:/sterownik_ATU_100/libraries/SPI/src}&quot;"/>
+									<listOptionValue builtIn="false" value="&quot;${workspace_loc:/sterownik_ATU_100/libraries/SPIMemory/src}&quot;"/>
+									<listOptionValue builtIn="false" value="&quot;${workspace_loc:/sterownik_ATU_100/libraries/TimerOne}&quot;"/>
 								</option>
 								<inputType id="io.sloeber.compiler.cpp.sketch.input.929000937" name="CPP source files" superClass="io.sloeber.compiler.cpp.sketch.input"/>
 							</tool>
@@ -44,6 +46,8 @@
 									<listOptionValue builtIn="false" value="&quot;${workspace_loc:/sterownik_ATU_100/libraries/Wire/src}&quot;"/>
 									<listOptionValue builtIn="false" value="&quot;${workspace_loc:/sterownik_ATU_100/libraries/Adafruit_BusIO}&quot;"/>
 									<listOptionValue builtIn="false" value="&quot;${workspace_loc:/sterownik_ATU_100/libraries/SPI/src}&quot;"/>
+									<listOptionValue builtIn="false" value="&quot;${workspace_loc:/sterownik_ATU_100/libraries/SPIMemory/src}&quot;"/>
+									<listOptionValue builtIn="false" value="&quot;${workspace_loc:/sterownik_ATU_100/libraries/TimerOne}&quot;"/>
 								</option>
 								<inputType id="io.sloeber.compiler.c.sketch.input.449649950" name="C Source Files" superClass="io.sloeber.compiler.c.sketch.input"/>
 							</tool>
@@ -59,6 +63,8 @@
 									<listOptionValue builtIn="false" value="&quot;${workspace_loc:/sterownik_ATU_100/libraries/Wire/src}&quot;"/>
 									<listOptionValue builtIn="false" value="&quot;${workspace_loc:/sterownik_ATU_100/libraries/Adafruit_BusIO}&quot;"/>
 									<listOptionValue builtIn="false" value="&quot;${workspace_loc:/sterownik_ATU_100/libraries/SPI/src}&quot;"/>
+									<listOptionValue builtIn="false" value="&quot;${workspace_loc:/sterownik_ATU_100/libraries/SPIMemory/src}&quot;"/>
+									<listOptionValue builtIn="false" value="&quot;${workspace_loc:/sterownik_ATU_100/libraries/TimerOne}&quot;"/>
 								</option>
 								<inputType id="io.sloeber.compiler.S.sketch.input.2128771665" name="Assembly source files" superClass="io.sloeber.compiler.S.sketch.input"/>
 							</tool>
@@ -69,7 +75,7 @@
 						</toolChain>
 					</folderInfo>
 					<sourceEntries>
-						<entry excluding="libraries/Bounce2/docs|libraries/New-LiquidCrystal-master/thirdparty libraries|libraries/New-LiquidCrystal-master/html|libraries/LiquidCrystal_I2C/docs|libraries/?*/**/?xamples/**|libraries/?*/**/?xtras/**|libraries/?*/**/test*/**|libraries/?*/**/third-party/**|libraries/**/._*|libraries/?*/utility/*/*" flags="VALUE_WORKSPACE_PATH" kind="sourcePath" name=""/>
+						<entry excluding="libraries/TimerOne/docs|libraries/TimerOne/config|libraries/SPIMemory/docs|libraries/Bounce2/docs|libraries/New-LiquidCrystal-master/thirdparty libraries|libraries/New-LiquidCrystal-master/html|libraries/LiquidCrystal_I2C/docs|libraries/?*/**/?xamples/**|libraries/?*/**/?xtras/**|libraries/?*/**/test*/**|libraries/?*/**/third-party/**|libraries/**/._*|libraries/?*/utility/*/*" flags="VALUE_WORKSPACE_PATH" kind="sourcePath" name=""/>
 					</sourceEntries>
 				</configuration>
 			</storageModule>
